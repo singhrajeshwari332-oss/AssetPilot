@@ -24,7 +24,7 @@ export function Header({ onMobileMenuToggle }) {
           <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-primary text-primary-foreground font-bold text-xs shadow-sm">
             <ShieldCheck className="h-4 w-4" />
           </div>
-          <span className="font-semibold text-sm tracking-tight">AssetHQ</span>
+          <span className="font-semibold text-sm tracking-tight">AssetPilot</span>
         </div>
       </div>
 

@@ -98,7 +98,7 @@ function LoginForm() {
           <ShieldCheck className="h-7 w-7" />
         </div>
         <h1 className="text-2xl font-bold tracking-tight text-foreground">
-          AssetHQ Enterprise
+          AssetPilot Enterprise
         </h1>
         <p className="text-xs text-muted-foreground">
           Internal IT Asset, Custody & Software License Portal

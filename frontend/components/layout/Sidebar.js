@@ -46,7 +46,7 @@ export function Sidebar({ mobileOpen, setMobileOpen }) {
             {(!collapsed || isMobile) && (
               <div className="flex flex-col">
                 <span className="font-bold text-sm tracking-tight text-foreground">
-                  AssetHQ
+                  AssetPilot
                 </span>
                 <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">
                   Enterprise

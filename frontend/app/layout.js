@@ -4,7 +4,7 @@ import { AuthProvider } from "@/context/AuthContext"
 import { Toaster } from "sonner"
 
 export const metadata = {
-  title: "AssetHQ — Enterprise Asset Management",
+  title: "AssetPilot — Enterprise Asset Management",
   description: "Enterprise asset tracking, custody management, and license portal",
 }
 
