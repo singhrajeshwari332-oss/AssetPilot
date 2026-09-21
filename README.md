@@ -1,77 +1,330 @@
-# Enterprise Company Asset Management System (Track 02)
+# AssetPilot — Enterprise Asset Management System
 
-A modern, enterprise-grade internal Asset Management portal built with **Next.js**, **React**, **shadcn/ui**, **Tailwind CSS**, **Lucide React**, **Node.js/Express**, **Prisma ORM**, and **SQLite**.
+A modern internal **Company Asset Management System** built to manage company hardware, software licenses, employee custody, returns, repairs, and audit records.
 
----
+AssetPilot provides a centralized portal for tracking assets throughout their complete lifecycle — from purchase and assignment to return, repair, and retirement.
 
 ## 🌟 Key Features
 
-- **High-Density Asset Inventory**:
-  - Asset CRUD (Laptops, Monitors, Mobile Devices, Peripherals, Software Licenses).
-  - Search across tags, serials, employees, models, brands, and departments.
-  - Multi-filtering by Category and Status.
-  - Interactive **Asset 360° Detail Sheet Drawer** with tabs for technical specs, current custody, complete custody timeline, servicing history, software license metrics, and audit history.
-- **Deterministic State Machine**:
-  - `AVAILABLE` &rarr; `ASSIGNED`, `IN_REPAIR`, `RETIRED`
-  - `ASSIGNED` &rarr; `RETURN_REQUESTED`, `IN_REPAIR`
-  - `RETURN_REQUESTED` &rarr; `AVAILABLE`, `IN_REPAIR`, `RETIRED`
-  - `IN_REPAIR` &rarr; `AVAILABLE`, `RETIRED`
-  - `RETIRED` &rarr; Terminal State (Decommissioned)
-  - Full backend validation preventing illegal transitions.
-- **Custody Tracking & Historical Preservation**:
-  - Check-in/check-out timestamps, condition at issuance and return, notes.
-  - Historical records are immutable and preserved permanently.
-- **Return Request & Check-in Processing**:
-  - Submit returns &rarr; Inspect condition on return &rarr; Check in back to `AVAILABLE`, `IN_REPAIR`, or `RETIRED`.
-- **Hardware Service & Repairs**:
-  - Create repair tickets with vendors and cost estimates.
-  - Resolve repairs with resolution notes, final expenses, and status recovery.
-- **Software License Seat Quota Management**:
-  - Visual seat meters (`X / Y seats allocated`), cost per seat, expiration warning badge.
-  - Over-allocation prevention and duplicate active assignment prevention.
-  - Instant seat revoke mechanism with confirmation dialogs.
-- **Personnel Directory**:
-  - Employee CRUD, departmental allocations, and active hardware/license tracking.
-- **Compliance Audit Trail**:
-  - Full immutable chronological event log tracking every creation, update, state transition, and deletion.
-- **Real-Time Header Controls**:
-  - Top-right controls strictly ordered: **`[ Theme ] [ Notification ] [ User Menu ]`**.
-  - **Theme Switcher**: Immediate switching between Light ☀, Dark 🌙, and System 🖥.
-  - **Notification Popover**: Live alerts for pending returns, in-repair assets, and expiring licenses.
-  - **User Profile & JWT Logout**.
-- **Enterprise Login Experience**:
-  - Inline error validation with exact corporate feedback.
-  - `[ Loader ] Signing in...` state, disabled button, zero page reload glitches.
+### Asset Inventory
+
+* Create, update, view, and manage company assets.
+* Supports laptops, monitors, mobile devices, printers, peripherals, and software licenses.
+* Search by asset tag, serial number, model, employee, department, category, and status.
+* Filter assets by category and status.
+* Asset 360° detail view with:
+
+  * Technical specifications
+  * Current custody
+  * Custody history
+  * Service and repair history
+  * License information
+  * Audit history
+
+### Deterministic Asset State Machine
+
+The backend validates allowed asset state transitions.
+
+```text
+AVAILABLE → ASSIGNED
+AVAILABLE → IN_REPAIR
+AVAILABLE → RETIRED
+
+ASSIGNED → RETURN_REQUESTED
+ASSIGNED → IN_REPAIR
+
+RETURN_REQUESTED → AVAILABLE
+RETURN_REQUESTED → IN_REPAIR
+RETURN_REQUESTED → RETIRED
+
+IN_REPAIR → AVAILABLE
+IN_REPAIR → RETIRED
+
+RETIRED → Terminal State
+```
+
+Illegal state transitions are rejected by the backend.
+
+### Custody Tracking
+
+* Track asset check-out and check-in timestamps.
+* Record asset condition at issuance and return.
+* Maintain notes and historical custody records.
+* Preserve historical custody information for audit purposes.
+
+### Return Management
+
+* Employees can submit asset return requests.
+* Administrators can inspect returned assets.
+* Returned assets can be moved to:
+
+  * `AVAILABLE`
+  * `IN_REPAIR`
+  * `RETIRED`
+
+### Hardware Repairs
+
+* Create repair records.
+* Track vendor information and repair issues.
+* Record repair costs.
+* Store resolution notes and timestamps.
+* Restore the asset to an appropriate state after repair.
+
+### Software License Management
+
+* Track software licenses and seat quotas.
+* Monitor allocated versus available seats.
+* Prevent license over-allocation.
+* Prevent duplicate active assignments.
+* Track license expiration dates.
+* Revoke allocated seats when required.
+
+### Employee Management
+
+* Employee CRUD operations.
+* Department information.
+* View assigned hardware.
+* View allocated software licenses.
+
+### Audit Trail
+
+* Record important system events.
+* Track asset creation, updates, assignments, returns, state changes, and deletions.
+* Maintain chronological audit records.
+
+### Dashboard & Notifications
+
+* Asset and employee overview.
+* Pending return notifications.
+* Assets currently under repair.
+* Expiring software license alerts.
+* Light, dark, and system theme modes.
+* User profile and JWT-based logout.
+
+### Authentication
+
+* JWT-based authentication.
+* Password hashing using bcrypt.
+* Protected backend API routes.
+* Login validation and error handling.
 
 ---
 
-## 🚀 Quick Start
+## 🛠 Technology Stack
 
-### 1. Default Login Credentials
-- **Email**: `admin@company.com`
-- **Password**: `password123`
+### Frontend
 
-### 2. Starting the Application
+* Next.js
+* React
+* Tailwind CSS
+* shadcn/ui
+* Lucide React
+* Axios
+* Sonner
 
-#### Start the Backend API (Port 5001):
+### Backend
+
+* Node.js
+* Express.js
+* REST APIs
+* JWT authentication
+* bcryptjs
+
+### Database
+
+* PostgreSQL
+* Prisma ORM
+
+### Development Tools
+
+* Git
+* GitHub
+* npm
+
+---
+
+## 📁 Project Structure
+
+```text
+AssetPilot/
+│
+├── backend/
+│   ├── prisma/
+│   │   ├── schema.prisma
+│   │   └── seed.js
+│   │
+│   └── src/
+│       ├── controllers/
+│       ├── middleware/
+│       ├── routes/
+│       ├── services/
+│       └── server.js
+│
+├── frontend/
+│   ├── app/
+│   ├── components/
+│   ├── context/
+│   ├── lib/
+│   └── services/
+│
+├── .gitignore
+├── package.json
+└── README.md
+```
+
+---
+
+## 🚀 Getting Started
+
+### Prerequisites
+
+Make sure the following are installed:
+
+* Node.js
+* npm
+* PostgreSQL
+* Git
+
+### 1. Clone the repository
+
+```bash
+git clone <your-repository-url>
+cd AssetPilot
+```
+
+### 2. Install backend dependencies
+
 ```bash
 cd backend
+npm install
+```
+
+### 3. Configure backend environment variables
+
+Create a `.env` file inside the `backend` directory.
+
+Example:
+
+```env
+PORT=5001
+POSTGRES_URL="your-postgresql-connection-string"
+JWT_SECRET="your-jwt-secret"
+JWT_EXPIRES_IN="7d"
+CORS_ORIGIN="http://localhost:3000"
+```
+
+**Never commit the `.env` file to GitHub.**
+
+### 4. Set up the database
+
+From the `backend` directory:
+
+```bash
+npx prisma db push
+```
+
+If the project uses seed data:
+
+```bash
+npx prisma db seed
+```
+
+### 5. Start the backend
+
+```bash
 npm run dev
 ```
 
-#### Start the Next.js Frontend (Port 3000):
+The backend API runs on:
+
+```text
+http://localhost:5001
+```
+
+### 6. Install frontend dependencies
+
+Open another terminal:
+
 ```bash
 cd frontend
+npm install
+```
+
+### 7. Start the frontend
+
+```bash
 npm run dev
 ```
 
-Visit **`http://localhost:3000`** in your browser.
+The frontend runs on:
+
+```text
+http://localhost:3000
+```
+
+Open the application in your browser:
+
+```text
+http://localhost:3000
+```
 
 ---
 
-## 🏗 Technology Stack
+## 🔐 Demo Account
 
-- **Frontend**: Next.js (App Router), React, Tailwind CSS, shadcn/ui components, Lucide React, Axios, Sonner toast.
-- **Backend**: Node.js, Express.js REST APIs, JWT authentication, bcryptjs password hashing.
-- **Database**: SQLite with Prisma ORM.
-- **Styling**: Pure Tailwind CSS utility classes and shadcn/ui components (zero custom CSS files).
+For local development, the database seed creates a demo administrator account.
+
+The credentials are intentionally **not published in this README**.
+
+Use the credentials configured by the project's seed/setup process.
+
+> For production deployments, use strong unique credentials and secrets.
+
+---
+
+## 🔒 Security Notes
+
+* Environment variables are stored in `.env` and excluded through `.gitignore`.
+* JWT secrets should be unique and securely generated.
+* Database credentials should never be committed to the repository.
+* Change development credentials before deploying the application to a production environment.
+
+---
+
+## 📌 Project Status
+
+AssetPilot is an academic/internship project demonstrating:
+
+* Full-stack web development
+* REST API design
+* Authentication and authorization
+* Database modeling
+* Asset lifecycle management
+* State-machine validation
+* Audit logging
+* License management
+* Modern responsive UI development
+
+---
+
+## 👩‍💻 Development
+
+The project is structured as two applications:
+
+```text
+Frontend → Next.js
+              ↓
+           REST API
+              ↓
+Backend → Node.js / Express
+              ↓
+          Prisma ORM
+              ↓
+         PostgreSQL
+```
+
+---
+
+## 📄 License
+
+This project is developed for educational and internship purposes.
