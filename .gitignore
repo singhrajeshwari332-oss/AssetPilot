@@ -1,0 +1,22 @@
+# Dependencies
+node_modules/
+
+# Environment variables / secrets
+.env
+.env.*
+!.env.example
+
+# Next.js
+.next/
+
+# Build output
+dist/
+build/
+
+# Local database files
+*.db
+*.sqlite
+*.sqlite3
+
+# Logs
+*.log

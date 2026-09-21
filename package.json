@@ -1,0 +1,12 @@
+{
+  "name": "enterprise-asset-management-system",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "backend:dev": "npm --prefix backend run dev",
+    "frontend:dev": "npm --prefix frontend run dev",
+    "backend:start": "npm --prefix backend start",
+    "frontend:start": "npm --prefix frontend start",
+    "db:setup": "npm --prefix backend run db:setup"
+  }
+}

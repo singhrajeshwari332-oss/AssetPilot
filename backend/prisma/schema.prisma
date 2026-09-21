@@ -1,0 +1,139 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("POSTGRES_URL")
+}
+
+model User {
+  id           String     @id @default(uuid())
+  email        String     @unique
+  passwordHash String
+  name         String
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+  auditLogs    AuditLog[]
+}
+
+model Employee {
+  id                 String              @id @default(uuid())
+  employeeId         String              @unique
+  name               String
+  email              String              @unique
+  department         String
+  designation        String
+  joinDate           DateTime            @default(now())
+  exitDate           DateTime?
+  dob                DateTime?
+  gender             String?
+  bloodGroup         String?
+  phone              String?
+  address            String?
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
+  custodyRecords     CustodyRecord[]
+  returnRequests     ReturnRequest[]
+  licenseAllocations LicenseAllocation[]
+}
+
+model Asset {
+  id                 String              @id @default(uuid())
+  assetTag           String              @unique
+  category           String              // LAPTOP, MONITOR, MOBILE_DEVICE, PERIPHERAL, SOFTWARE_LICENSE
+  brand              String
+  model              String
+  serialNumber       String?             @unique
+  purchaseDate       DateTime?
+  purchaseCost       Float?              @default(0)
+  location           String              @default("HQ Floor 1")
+  status             String              @default("AVAILABLE") // AVAILABLE, ASSIGNED, RETURN_REQUESTED, IN_REPAIR, RETIRED
+  notes              String?
+  // Software license specific fields
+  licenseKey         String?
+  seatQuota          Int?                @default(0)
+  costPerSeat        Float?              @default(0)
+  expirationDate     DateTime?
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
+  custodyRecords     CustodyRecord[]
+  returnRequests     ReturnRequest[]
+  serviceRecords     ServiceRecord[]
+  licenseAllocations LicenseAllocation[]
+}
+
+model CustodyRecord {
+  id                String    @id @default(uuid())
+  assetId           String
+  employeeId        String
+  checkoutDate      DateTime  @default(now())
+  checkinDate       DateTime?
+  conditionCheckout String    @default("GOOD") // NEW, EXCELLENT, GOOD, FAIR, DAMAGED
+  conditionReturn   String?
+  notes             String?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  asset             Asset     @relation(fields: [assetId], references: [id], onDelete: Cascade)
+  employee          Employee  @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+}
+
+model ReturnRequest {
+  id             String    @id @default(uuid())
+  assetId        String
+  employeeId     String
+  reason         String?
+  conditionNotes String?
+  status         String    @default("PENDING") // PENDING, PROCESSED, REJECTED
+  requestedAt    DateTime  @default(now())
+  processedAt    DateTime?
+  processedNotes String?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  asset          Asset     @relation(fields: [assetId], references: [id], onDelete: Cascade)
+  employee       Employee  @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+}
+
+model ServiceRecord {
+  id              String    @id @default(uuid())
+  assetId         String
+  vendor          String
+  issue           String
+  cost            Float     @default(0)
+  serviceDate     DateTime  @default(now())
+  resolutionNotes String?
+  resolvedAt      DateTime?
+  status          String    @default("OPEN") // OPEN, RESOLVED
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  asset           Asset     @relation(fields: [assetId], references: [id], onDelete: Cascade)
+}
+
+model LicenseAllocation {
+  id          String    @id @default(uuid())
+  assetId     String
+  employeeId  String
+  allocatedAt DateTime  @default(now())
+  revokedAt   DateTime?
+  status      String    @default("ACTIVE") // ACTIVE, REVOKED
+  notes       String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  asset       Asset     @relation(fields: [assetId], references: [id], onDelete: Cascade)
+  employee    Employee  @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+}
+
+model AuditLog {
+  id          String   @id @default(uuid())
+  action      String   // ASSET_CREATED, ASSET_ASSIGNED, ASSET_RETURNED, REPAIR_STARTED, etc.
+  entityType  String   // ASSET, EMPLOYEE, CUSTODY, RETURN_REQUEST, SERVICE, LICENSE
+  entityId    String?
+  details     String?  // JSON string or descriptive text
+  performedBy String?
+  user        User?    @relation(fields: [performedBy], references: [id], onDelete: SetNull)
+  createdAt   DateTime @default(now())
+}
