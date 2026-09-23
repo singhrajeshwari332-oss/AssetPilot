@@ -1,373 +1,529 @@
 "use client"
 
-import React, { useState, useEffect } from "react"
+import React, { useEffect, useState } from "react"
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-  DialogFooter,
+Dialog,
+DialogContent,
+DialogHeader,
+DialogTitle,
+DialogFooter,
 } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
+Select,
+SelectContent,
+SelectItem,
+SelectTrigger,
+SelectValue,
 } from "@/components/ui/select"
-import { Alert, AlertDescription } from "@/components/ui/alert"
-import { Loader2, AlertCircle } from "lucide-react"
+import { Label } from "@/components/ui/label"
 import api from "@/services/api"
 import { toast } from "sonner"
+import { Loader2 } from "lucide-react"
 
-const DEPARTMENTS = [
-  "Engineering",
-  "Product Design",
-  "Product Management",
-  "DevOps & Infra",
-  "Human Resources",
-  "Marketing & Sales",
-  "Finance & Operations",
-]
+const initialForm = {
+employeeId: "",
+name: "",
+email: "",
+department: "",
+designation: "",
+manager: "",
+employmentType: "",
+workLocation: "",
+employmentStatus: "ACTIVE",
+joinDate: "",
+exitDate: "",
+dob: "",
+gender: "",
+bloodGroup: "",
+phone: "",
+address: "",
+profilePhoto: "",
+}
 
-export function EmployeeDialog({ open, onOpenChange, employee, onSuccess }) {
-  const isEditing = Boolean(employee?.id)
+export function EmployeeDialog({
+open,
+onOpenChange,
+employee,
+onSuccess,
+}) {
+const [form, setForm] = useState(initialForm)
+const [loading, setLoading] = useState(false)
 
-  const [formData, setFormData] = useState({
-    employeeId: "",
-    name: "",
-    email: "",
-    department: "Engineering",
-    designation: "",
-    joinDate: "",
-    dob: "",
-    gender: "",
-    bloodGroup: "",
-    phone: "",
-    address: "",
+const isEditing = Boolean(employee?.id)
+
+useEffect(() => {
+if (!open) return
+
+
+if (employee) {
+  setForm({
+    employeeId: employee.employeeId || "",
+    name: employee.name || "",
+    email: employee.email || "",
+    department: employee.department || "",
+    designation: employee.designation || "",
+    manager: employee.manager || "",
+    employmentType: employee.employmentType || "",
+    workLocation: employee.workLocation || "",
+    employmentStatus: employee.employmentStatus || "ACTIVE",
+    joinDate: employee.joinDate
+      ? employee.joinDate.substring(0, 10)
+      : "",
+    exitDate: employee.exitDate
+      ? employee.exitDate.substring(0, 10)
+      : "",
+    dob: employee.dob
+      ? employee.dob.substring(0, 10)
+      : "",
+    gender: employee.gender || "",
+    bloodGroup: employee.bloodGroup || "",
+    phone: employee.phone || "",
+    address: employee.address || "",
+    profilePhoto: employee.profilePhoto || "",
   })
+} else {
+  setForm(initialForm)
+}
 
-  const [errors, setErrors] = useState({})
-  const [loading, setLoading] = useState(false)
-  const [apiError, setApiError] = useState("")
 
-  useEffect(() => {
-    if (employee) {
-      setFormData({
-        employeeId: employee.employeeId || "",
-        name: employee.name || "",
-        email: employee.email || "",
-        department: employee.department || "Engineering",
-        designation: employee.designation || "",
-        joinDate: employee.joinDate ? employee.joinDate.split("T")[0] : "",
-        dob: employee.dob ? employee.dob.split("T")[0] : "",
-        gender: employee.gender || "",
-        bloodGroup: employee.bloodGroup || "",
-        phone: employee.phone || "",
-        address: employee.address || "",
-      })
-    } else {
-      setFormData({
-        employeeId: "",
-        name: "",
-        email: "",
-        department: "Engineering",
-        designation: "",
-        joinDate: new Date().toISOString().split("T")[0],
-        dob: "",
-        gender: "",
-        bloodGroup: "",
-        phone: "",
-        address: "",
-      })
-    }
-    setErrors({})
-    setApiError("")
-  }, [employee, open])
+}, [open, employee])
 
-  const validate = () => {
-    const newErrors = {}
+const handleChange = (field, value) => {
+setForm((prev) => ({
+...prev,
+[field]: value,
+}))
+}
 
-    if (!formData.employeeId.trim()) {
-      newErrors.employeeId = "Employee ID is required."
-    }
-    if (!formData.name.trim()) {
-      newErrors.name = "Employee name is required."
-    }
-    if (!formData.email.trim()) {
-      newErrors.email = "Email address is required."
-    } else {
-      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-      if (!emailRegex.test(formData.email.trim())) {
-        newErrors.email = "Please enter a valid email address."
-      }
-    }
-    if (!formData.designation.trim()) {
-      newErrors.designation = "Designation is required."
-    }
+const handleSubmit = async (e) => {
+e.preventDefault()
 
-    setErrors(newErrors)
-    return Object.keys(newErrors).length === 0
+if (!form.name.trim()) {
+  toast.error("Employee name is required.")
+  return
+}
+
+if (!form.email.trim()) {
+  toast.error("Email is required.")
+  return
+}
+
+if (!form.department.trim()) {
+  toast.error("Department is required.")
+  return
+}
+
+if (!form.designation.trim()) {
+  toast.error("Designation is required.")
+  return
+}
+
+try {
+  setLoading(true)
+
+  const payload = {
+    employeeId: form.employeeId.trim() || undefined,
+    name: form.name.trim(),
+    email: form.email.trim(),
+    department: form.department.trim(),
+    designation: form.designation.trim(),
+    manager: form.manager.trim() || null,
+    employmentType: form.employmentType || null,
+    workLocation: form.workLocation.trim() || null,
+    employmentStatus: form.employmentStatus || "ACTIVE",
+    joinDate: form.joinDate || null,
+    exitDate: form.exitDate || null,
+    dob: form.dob || null,
+    gender: form.gender || null,
+    bloodGroup: form.bloodGroup || null,
+    phone: form.phone.trim() || null,
+    address: form.address.trim() || null,
+    profilePhoto: form.profilePhoto.trim() || null,
   }
 
-  const handleSubmit = async (e) => {
-    e.preventDefault()
-    setApiError("")
-
-    if (!validate()) return
-
-    setLoading(true)
-
-    try {
-      if (isEditing) {
-        await api.put(`/employees/${employee.id}`, formData)
-        toast.success("✓ Employee updated successfully.")
-      } else {
-        await api.post("/employees", formData)
-        toast.success("✓ Employee created successfully.")
-      }
-
-      onSuccess?.()
-      onOpenChange(false)
-    } catch (err) {
-      const msg = err.response?.data?.message || "Failed to save employee."
-      setApiError(msg)
-      toast.error(msg)
-    } finally {
-      setLoading(false)
-    }
+  if (isEditing) {
+    await api.put(`/employees/${employee.id}`, payload)
+    toast.success("Employee updated successfully.")
+  } else {
+    await api.post("/employees", payload)
+    toast.success("Employee created successfully.")
   }
 
-  return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md max-h-[90vh] flex flex-col">
-        <DialogHeader>
-          <DialogTitle className="text-base font-bold">
-            {isEditing ? `Edit Employee: ${employee?.name}` : "Register New Employee"}
-          </DialogTitle>
-          <DialogDescription className="text-xs">
-            {isEditing
-              ? "Update personnel information and department assignment."
-              : "Onboard a new employee to enable hardware and license allocations."}
-          </DialogDescription>
-        </DialogHeader>
+  onOpenChange(false)
 
-        <form onSubmit={handleSubmit} className="flex flex-col flex-1 overflow-hidden">
-          <div className="overflow-y-auto space-y-4 py-2 pr-1">
-            {apiError && (
-              <Alert variant="destructive" className="py-2.5 px-3 text-xs">
-                <AlertCircle className="h-4 w-4" />
-                <AlertDescription className="ml-2 font-medium">{apiError}</AlertDescription>
-              </Alert>
-            )}
+  if (onSuccess) {
+    await onSuccess()
+  }
+} catch (error) {
+  console.error("Employee save error:", error)
 
-          <div className="space-y-1.5">
-            <Label htmlFor="employeeId" className="text-xs font-medium">
-              Employee ID <span className="text-destructive">*</span>
-            </Label>
+  toast.error(
+    error?.response?.data?.message ||
+      "Failed to save employee details."
+  )
+} finally {
+  setLoading(false)
+}
+
+}
+
+return ( <Dialog open={open} onOpenChange={onOpenChange}> <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto"> <DialogHeader> <DialogTitle>
+{isEditing ? "Edit Employee" : "Add Employee"} </DialogTitle> </DialogHeader>
+
+    <form onSubmit={handleSubmit} className="space-y-6">
+
+      {/* Basic Information */}
+      <section className="space-y-4">
+        <h3 className="text-sm font-semibold">
+          Basic Information
+        </h3>
+
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+
+          <Field label="Employee ID">
             <Input
-              id="employeeId"
-              placeholder="e.g. EMP-1010"
-              value={formData.employeeId}
-              onChange={(e) => setFormData({ ...formData, employeeId: e.target.value.toUpperCase() })}
-              disabled={isEditing || loading}
-              className={`font-mono text-xs ${errors.employeeId ? "border-destructive" : ""}`}
+              value={form.employeeId}
+              onChange={(e) =>
+                handleChange("employeeId", e.target.value)
+              }
+              placeholder="EMP-1001"
+              disabled={isEditing}
             />
-            {errors.employeeId && <p className="text-[11px] text-destructive">{errors.employeeId}</p>}
-          </div>
+          </Field>
 
-          <div className="space-y-1.5">
-            <Label htmlFor="name" className="text-xs font-medium">
-              Full Name <span className="text-destructive">*</span>
-            </Label>
+          <Field label="Full Name" required>
             <Input
-              id="name"
-              placeholder="e.g. Aditi Sharma"
-              value={formData.name}
-              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-              disabled={loading}
-              className={`text-xs ${errors.name ? "border-destructive" : ""}`}
+              value={form.name}
+              onChange={(e) =>
+                handleChange("name", e.target.value)
+              }
+              placeholder="Employee name"
             />
-            {errors.name && <p className="text-[11px] text-destructive">{errors.name}</p>}
-          </div>
+          </Field>
 
-          <div className="space-y-1.5">
-            <Label htmlFor="email" className="text-xs font-medium">
-              Corporate Email <span className="text-destructive">*</span>
-            </Label>
+          <Field label="Email" required>
             <Input
-              id="email"
               type="email"
-              placeholder="name@company.com"
-              value={formData.email}
-              onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-              disabled={loading}
-              className={`text-xs ${errors.email ? "border-destructive" : ""}`}
+              value={form.email}
+              onChange={(e) =>
+                handleChange("email", e.target.value)
+              }
+              placeholder="employee@company.com"
             />
-            {errors.email && <p className="text-[11px] text-destructive">{errors.email}</p>}
-          </div>
+          </Field>
 
-          <div className="space-y-1.5">
-            <Label htmlFor="department" className="text-xs font-medium">
-              Department <span className="text-destructive">*</span>
-            </Label>
+          <Field label="Phone">
+            <Input
+              value={form.phone}
+              onChange={(e) =>
+                handleChange("phone", e.target.value)
+              }
+              placeholder="Phone number"
+            />
+          </Field>
+
+        </div>
+      </section>
+
+      {/* Personal Information */}
+      <section className="space-y-4">
+        <h3 className="text-sm font-semibold">
+          Personal Information
+        </h3>
+
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+
+          <Field label="Date of Birth">
+            <Input
+              type="date"
+              value={form.dob}
+              onChange={(e) =>
+                handleChange("dob", e.target.value)
+              }
+            />
+          </Field>
+
+          <Field label="Gender">
             <Select
-              value={formData.department}
-              onValueChange={(val) => setFormData({ ...formData, department: val })}
-              disabled={loading}
+              value={form.gender || "NONE"}
+              onValueChange={(value) =>
+                handleChange(
+                  "gender",
+                  value === "NONE" ? "" : value
+                )
+              }
             >
-              <SelectTrigger id="department" className="text-xs">
-                <SelectValue placeholder="Select Department" />
+              <SelectTrigger>
+                <SelectValue placeholder="Select gender" />
               </SelectTrigger>
+
               <SelectContent>
-                {DEPARTMENTS.map((dept) => (
-                  <SelectItem key={dept} value={dept} className="text-xs">
-                    {dept}
-                  </SelectItem>
-                ))}
+                <SelectItem value="NONE">
+                  Not specified
+                </SelectItem>
+                <SelectItem value="MALE">
+                  Male
+                </SelectItem>
+                <SelectItem value="FEMALE">
+                  Female
+                </SelectItem>
+                <SelectItem value="OTHER">
+                  Other
+                </SelectItem>
               </SelectContent>
             </Select>
-          </div>
+          </Field>
 
-          <div className="space-y-1.5">
-            <Label htmlFor="designation" className="text-xs font-medium">
-              Designation / Role <span className="text-destructive">*</span>
-            </Label>
-            <Input
-              id="designation"
-              placeholder="e.g. Senior Software Engineer"
-              value={formData.designation}
-              onChange={(e) => setFormData({ ...formData, designation: e.target.value })}
-              disabled={loading}
-              className={`text-xs ${errors.designation ? "border-destructive" : ""}`}
-            />
-            {errors.designation && <p className="text-[11px] text-destructive">{errors.designation}</p>}
-          </div>
-
-          <div className="space-y-1.5">
-            <Label htmlFor="joinDate" className="text-xs font-medium">
-              Date of Joining
-            </Label>
-            <Input
-              id="joinDate"
-              type="date"
-              value={formData.joinDate}
-              onChange={(e) => setFormData({ ...formData, joinDate: e.target.value })}
-              disabled={loading}
-              className="text-xs"
-            />
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-1.5">
-              <Label htmlFor="dob" className="text-xs font-medium">
-                Date of Birth
-              </Label>
-              <Input
-                id="dob"
-                type="date"
-                value={formData.dob}
-                onChange={(e) => setFormData({ ...formData, dob: e.target.value })}
-                disabled={loading}
-                className="text-xs"
-              />
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="gender" className="text-xs font-medium">
-                Gender
-              </Label>
-              <Select
-                value={formData.gender}
-                onValueChange={(val) => setFormData({ ...formData, gender: val })}
-                disabled={loading}
-              >
-                <SelectTrigger id="gender" className="text-xs">
-                  <SelectValue placeholder="Select Gender" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="Male" className="text-xs">Male</SelectItem>
-                  <SelectItem value="Female" className="text-xs">Female</SelectItem>
-                  <SelectItem value="Other" className="text-xs">Other</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-1.5">
-              <Label htmlFor="bloodGroup" className="text-xs font-medium">
-                Blood Group
-              </Label>
-              <Input
-                id="bloodGroup"
-                placeholder="e.g. O+"
-                value={formData.bloodGroup}
-                onChange={(e) => setFormData({ ...formData, bloodGroup: e.target.value })}
-                disabled={loading}
-                className="text-xs"
-              />
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="phone" className="text-xs font-medium">
-                Phone Number
-              </Label>
-              <Input
-                id="phone"
-                placeholder="e.g. +1 234 567 8900"
-                value={formData.phone}
-                onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                disabled={loading}
-                className="text-xs"
-              />
-            </div>
-          </div>
-
-          <div className="space-y-1.5">
-            <Label htmlFor="address" className="text-xs font-medium">
-              Address
-            </Label>
-            <Input
-              id="address"
-              placeholder="Full Residential Address"
-              value={formData.address}
-              onChange={(e) => setFormData({ ...formData, address: e.target.value })}
-              disabled={loading}
-              className="text-xs"
-            />
-          </div>
-
-          </div>
-
-          <DialogFooter className="pt-3 border-t mt-4">
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={() => onOpenChange(false)}
-              disabled={loading}
-              className="text-xs"
+          <Field label="Blood Group">
+            <Select
+              value={form.bloodGroup || "NONE"}
+              onValueChange={(value) =>
+                handleChange(
+                  "bloodGroup",
+                  value === "NONE" ? "" : value
+                )
+              }
             >
-              Cancel
-            </Button>
-            <Button type="submit" size="sm" disabled={loading} className="text-xs">
-              {loading ? (
-                <span className="flex items-center gap-1.5">
-                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                  Saving...
-                </span>
-              ) : isEditing ? (
-                "Update Employee"
-              ) : (
-                "Create Employee"
-              )}
-            </Button>
-          </DialogFooter>
-        </form>
-      </DialogContent>
-    </Dialog>
-  )
+              <SelectTrigger>
+                <SelectValue placeholder="Select blood group" />
+              </SelectTrigger>
+
+              <SelectContent>
+                <SelectItem value="NONE">
+                  Not specified
+                </SelectItem>
+                <SelectItem value="A+">A+</SelectItem>
+                <SelectItem value="A-">A-</SelectItem>
+                <SelectItem value="B+">B+</SelectItem>
+                <SelectItem value="B-">B-</SelectItem>
+                <SelectItem value="AB+">AB+</SelectItem>
+                <SelectItem value="AB-">AB-</SelectItem>
+                <SelectItem value="O+">O+</SelectItem>
+                <SelectItem value="O-">O-</SelectItem>
+              </SelectContent>
+            </Select>
+          </Field>
+
+        </div>
+
+        <Field label="Address">
+          <textarea
+            value={form.address}
+            onChange={(e) =>
+              handleChange("address", e.target.value)
+            }
+            placeholder="Residential address"
+            rows={3}
+            className="flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+          />
+        </Field>
+      </section>
+
+      {/* Work Information */}
+      <section className="space-y-4">
+        <h3 className="text-sm font-semibold">
+          Work Information
+        </h3>
+
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+
+          <Field label="Department" required>
+            <Input
+              value={form.department}
+              onChange={(e) =>
+                handleChange("department", e.target.value)
+              }
+              placeholder="Department"
+            />
+          </Field>
+
+          <Field label="Designation" required>
+            <Input
+              value={form.designation}
+              onChange={(e) =>
+                handleChange("designation", e.target.value)
+              }
+              placeholder="Designation"
+            />
+          </Field>
+
+          <Field label="Manager">
+            <Input
+              value={form.manager}
+              onChange={(e) =>
+                handleChange("manager", e.target.value)
+              }
+              placeholder="Manager name"
+            />
+          </Field>
+
+          <Field label="Employment Type">
+            <Select
+              value={form.employmentType || "NONE"}
+              onValueChange={(value) =>
+                handleChange(
+                  "employmentType",
+                  value === "NONE" ? "" : value
+                )
+              }
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Select type" />
+              </SelectTrigger>
+
+              <SelectContent>
+                <SelectItem value="NONE">
+                  Not specified
+                </SelectItem>
+                <SelectItem value="FULL_TIME">
+                  Full Time
+                </SelectItem>
+                <SelectItem value="PART_TIME">
+                  Part Time
+                </SelectItem>
+                <SelectItem value="CONTRACT">
+                  Contract
+                </SelectItem>
+                <SelectItem value="INTERN">
+                  Intern
+                </SelectItem>
+              </SelectContent>
+            </Select>
+          </Field>
+
+          <Field label="Work Location">
+            <Input
+              value={form.workLocation}
+              onChange={(e) =>
+                handleChange("workLocation", e.target.value)
+              }
+              placeholder="Office / Location"
+            />
+          </Field>
+
+          <Field label="Employment Status">
+            <Select
+              value={form.employmentStatus}
+              onValueChange={(value) =>
+                handleChange("employmentStatus", value)
+              }
+            >
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+
+              <SelectContent>
+                <SelectItem value="ACTIVE">
+                  Active
+                </SelectItem>
+                <SelectItem value="INACTIVE">
+                  Inactive
+                </SelectItem>
+                <SelectItem value="ON_LEAVE">
+                  On Leave
+                </SelectItem>
+                <SelectItem value="TERMINATED">
+                  Terminated
+                </SelectItem>
+              </SelectContent>
+            </Select>
+          </Field>
+
+          <Field label="Join Date">
+            <Input
+              type="date"
+              value={form.joinDate}
+              onChange={(e) =>
+                handleChange("joinDate", e.target.value)
+              }
+            />
+          </Field>
+
+          <Field label="Exit Date">
+            <Input
+              type="date"
+              value={form.exitDate}
+              onChange={(e) =>
+                handleChange("exitDate", e.target.value)
+              }
+            />
+          </Field>
+
+        </div>
+      </section>
+
+      {/* Profile Photo */}
+      <section className="space-y-4">
+        <h3 className="text-sm font-semibold">
+          Profile Photo
+        </h3>
+
+        <Field label="Profile Photo URL">
+          <Input
+            value={form.profilePhoto}
+            onChange={(e) =>
+              handleChange("profilePhoto", e.target.value)
+            }
+            placeholder="https://example.com/photo.jpg"
+          />
+        </Field>
+
+        {form.profilePhoto && (
+          <div className="flex items-center gap-3">
+            <img
+              src={form.profilePhoto}
+              alt="Profile preview"
+              className="h-16 w-16 rounded-lg border object-cover"
+              onError={(e) => {
+                e.currentTarget.style.display = "none"
+              }}
+            />
+
+            <span className="text-xs text-muted-foreground">
+              Profile photo preview
+            </span>
+          </div>
+        )}
+      </section>
+
+      <DialogFooter className="border-t pt-5">
+        <Button
+          type="button"
+          variant="outline"
+          onClick={() => onOpenChange(false)}
+          disabled={loading}
+        >
+          Cancel
+        </Button>
+
+        <Button
+          type="submit"
+          disabled={loading}
+        >
+          {loading && (
+            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+          )}
+
+          {isEditing
+            ? "Save Changes"
+            : "Create Employee"}
+        </Button>
+      </DialogFooter>
+
+    </form>
+  </DialogContent>
+</Dialog>
+)
+}
+
+function Field({ label, required, children }) {
+return ( <div className="space-y-2"> <Label>
+{label}
+{required && ( <span className="ml-1 text-destructive">*</span>
+)} </Label>
+  {children}
+</div>
+)
 }

@@ -8,7 +8,14 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card"
 import { toast } from "sonner"
 
 function LoginForm() {
@@ -26,6 +33,7 @@ function LoginForm() {
     if (isAuthenticated) {
       router.push("/")
     }
+
     if (searchParams.get("expired")) {
       setErrorMessage("Your session has expired. Please sign in again.")
     }
@@ -38,6 +46,7 @@ function LoginForm() {
     }
 
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+
     if (!emailRegex.test(email.trim())) {
       setErrorMessage("Please enter a valid email address.")
       return false
@@ -97,9 +106,11 @@ function LoginForm() {
         <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-md">
           <ShieldCheck className="h-7 w-7" />
         </div>
+
         <h1 className="text-2xl font-bold tracking-tight text-foreground">
           AssetPilot Enterprise
         </h1>
+
         <p className="text-xs text-muted-foreground">
           Internal IT Asset, Custody & Software License Portal
         </p>
@@ -108,27 +119,37 @@ function LoginForm() {
       {/* Login Card */}
       <Card className="border shadow-lg bg-card">
         <CardHeader className="space-y-1 pb-4">
-          <CardTitle className="text-lg font-semibold">Sign in to your account</CardTitle>
+          <CardTitle className="text-lg font-semibold">
+            Sign in to your account
+          </CardTitle>
+
           <CardDescription className="text-xs">
             Enter your corporate credentials to access the inventory system
           </CardDescription>
         </CardHeader>
 
-        <CardContent>
+        <CardContent className="pb-3">
           <form onSubmit={handleSubmit} className="space-y-4">
             {errorMessage && (
-              <Alert variant="destructive" className="py-2.5 px-3 animate-in fade-in-50 text-xs">
+              <Alert
+                variant="destructive"
+                className="py-2.5 px-3 animate-in fade-in-50 text-xs"
+              >
                 <AlertCircle className="h-4 w-4" />
+
                 <AlertDescription className="text-xs font-medium ml-2">
                   {errorMessage}
                 </AlertDescription>
               </Alert>
             )}
 
+            {/* Email */}
             <div className="space-y-1.5">
               <Label htmlFor="email" className="text-xs font-medium">
-                Email Address <span className="text-destructive">*</span>
+                Email Address{" "}
+                <span className="text-destructive">*</span>
               </Label>
+
               <Input
                 id="email"
                 type="email"
@@ -136,7 +157,10 @@ function LoginForm() {
                 value={email}
                 onChange={(e) => {
                   setEmail(e.target.value)
-                  if (errorMessage) setErrorMessage("")
+
+                  if (errorMessage) {
+                    setErrorMessage("")
+                  }
                 }}
                 disabled={isLoading}
                 autoComplete="email"
@@ -144,12 +168,15 @@ function LoginForm() {
               />
             </div>
 
+            {/* Password */}
             <div className="space-y-1.5">
               <div className="flex items-center justify-between">
                 <Label htmlFor="password" className="text-xs font-medium">
-                  Password <span className="text-destructive">*</span>
+                  Password{" "}
+                  <span className="text-destructive">*</span>
                 </Label>
               </div>
+
               <div className="relative">
                 <Input
                   id="password"
@@ -158,17 +185,23 @@ function LoginForm() {
                   value={password}
                   onChange={(e) => {
                     setPassword(e.target.value)
-                    if (errorMessage) setErrorMessage("")
+
+                    if (errorMessage) {
+                      setErrorMessage("")
+                    }
                   }}
                   disabled={isLoading}
                   autoComplete="current-password"
                   className="h-9 pr-10 text-sm"
                 />
+
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
                   tabIndex={-1}
-                  aria-label={showPassword ? "Hide password" : "Show password"}
+                  aria-label={
+                    showPassword ? "Hide password" : "Show password"
+                  }
                   className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
                 >
                   {showPassword ? (
@@ -180,6 +213,7 @@ function LoginForm() {
               </div>
             </div>
 
+            {/* Sign In */}
             <Button
               type="submit"
               className="w-full h-9 font-medium text-xs mt-2"
@@ -197,18 +231,23 @@ function LoginForm() {
           </form>
         </CardContent>
 
+        {/* Demo Credentials */}
         <CardFooter className="flex flex-col gap-2 pt-0 border-t bg-muted/10 p-4 rounded-b-lg">
           <div className="flex items-center justify-between w-full text-xs">
-            <span className="text-muted-foreground">Demo Admin Account:</span>
+            <span className="text-muted-foreground">
+              Demo Admin Account:
+            </span>
+
             <button
               type="button"
               onClick={fillDemoCredentials}
-              className="text-primary font-medium hover:underline cursor-pointer"
+              className="text-muted-foreground font-medium hover:text-foreground hover:underline cursor-pointer"
             >
               Auto-fill credentials
             </button>
           </div>
-          <p className="text-[11px] text-muted-foreground/80 text-center w-full">
+
+          <p className="text-xs text-muted-foreground/80 text-left w-full">
             admin@company.com &bull; password123
           </p>
         </CardFooter>
@@ -220,7 +259,11 @@ function LoginForm() {
 export default function LoginPage() {
   return (
     <div className="flex min-h-screen items-center justify-center bg-muted/30 p-4 sm:p-8">
-      <Suspense fallback={<div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />}>
+      <Suspense
+        fallback={
+          <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+        }
+      >
         <LoginForm />
       </Suspense>
     </div>

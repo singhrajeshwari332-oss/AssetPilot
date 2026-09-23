@@ -100,11 +100,13 @@ export function AssetActionDialog({
         })
         toast.success("✓ Asset assigned successfully.")
       } else if (actionType === "RETURN") {
-        await api.post("/return-requests", {
-          assetId: asset.id,
-          reason,
-          conditionNotes: notes,
-        })
+        const returnResponse = await api.post("/return-requests", {
+  assetId: asset.id,
+  reason,
+  conditionNotes: notes,
+})
+
+console.log("RETURN RESPONSE:", returnResponse.data)
         toast.success("✓ Return request submitted successfully.")
       } else if (actionType === "PROCESS_RETURN") {
         // Find the return request ID if available

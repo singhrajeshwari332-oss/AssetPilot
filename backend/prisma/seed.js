@@ -6,7 +6,10 @@ const prisma = new PrismaClient();
 async function main() {
   console.log('Seeding Enterprise Asset Management database...');
 
-  // 1. Clean existing records (in proper foreign-key order)
+  // ============================================================
+  // 1. CLEAN EXISTING RECORDS
+  // ============================================================
+
   await prisma.auditLog.deleteMany();
   await prisma.licenseAllocation.deleteMany();
   await prisma.serviceRecord.deleteMany();
@@ -14,21 +17,214 @@ async function main() {
   await prisma.custodyRecord.deleteMany();
   await prisma.asset.deleteMany();
   await prisma.employee.deleteMany();
-  await prisma.user.deleteMany();
 
-  // 2. Seed Default User
+  // RBAC cleanup
+  await prisma.rolePermission.deleteMany();
+  await prisma.permission.deleteMany();
+  await prisma.user.deleteMany();
+  await prisma.role.deleteMany();
+
+  // ============================================================
+  // 2. SEED RBAC PERMISSIONS
+  // ============================================================
+
+  const permissionsData = [
+    {
+      name: 'USER_MANAGE',
+      description: 'Create, update, and manage users and roles'
+    },
+    {
+      name: 'ASSET_VIEW',
+      description: 'View assets and asset details'
+    },
+    {
+      name: 'ASSET_CREATE',
+      description: 'Create new assets'
+    },
+    {
+      name: 'ASSET_EDIT',
+      description: 'Edit existing assets'
+    },
+    {
+      name: 'ASSET_DELETE',
+      description: 'Delete assets'
+    },
+    {
+      name: 'ASSET_ASSIGN',
+      description: 'Assign assets to employees'
+    },
+    {
+      name: 'ASSET_RETURN',
+      description: 'Process asset returns'
+    },
+    {
+      name: 'REPAIR_MANAGE',
+      description: 'Create and manage repair/service records'
+    },
+    {
+      name: 'LICENSE_MANAGE',
+      description: 'Manage software licenses and allocations'
+    },
+    {
+      name: 'EMPLOYEE_MANAGE',
+      description: 'Create, update, and manage employees'
+    },
+    {
+      name: 'AUDIT_VIEW',
+      description: 'View audit logs'
+    },
+    {
+  name: 'DOCUMENT_VIEW',
+  description: 'View and manage digital handover and return documents'
+    },
+  ];
+
+  const permissions = {};
+
+  for (const permissionData of permissionsData) {
+    const permission = await prisma.permission.create({
+      data: permissionData
+    });
+
+    permissions[permission.name] = permission;
+  }
+
+  console.log(
+    `Created ${Object.keys(permissions).length} permissions.`
+  );
+
+  // ============================================================
+  // 3. CREATE ROLES
+  // ============================================================
+
+  // ---------------- SUPER ADMIN ----------------
+
+  const superAdminRole = await prisma.role.create({
+    data: {
+      name: 'SUPER_ADMIN',
+      description: 'Full access to the AssetPilot system'
+    }
+  });
+
+  for (const permission of Object.values(permissions)) {
+    await prisma.rolePermission.create({
+      data: {
+        roleId: superAdminRole.id,
+        permissionId: permission.id
+      }
+    });
+  }
+
+  console.log('Created SUPER_ADMIN role with all permissions.');
+
+  // ---------------- IT SUPPORT ----------------
+
+  const itSupportRole = await prisma.role.create({
+    data: {
+      name: 'IT_SUPPORT',
+      description:
+        'IT support staff with asset viewing, editing, and repair access'
+    }
+  });
+
+  const itSupportPermissions = [
+    'ASSET_VIEW',
+    'ASSET_EDIT',
+    'REPAIR_MANAGE'
+  ];
+
+  for (const permissionName of itSupportPermissions) {
+    await prisma.rolePermission.create({
+      data: {
+        roleId: itSupportRole.id,
+        permissionId: permissions[permissionName].id
+      }
+    });
+  }
+
+  console.log('Created IT_SUPPORT role.');
+
+  // ---------------- EMPLOYEE ----------------
+
+  const employeeRole = await prisma.role.create({
+    data: {
+      name: 'EMPLOYEE',
+      description:
+        'Employees can view their own information and assigned assets and submit asset requests'
+    }
+  });
+
+  /*
+   * Employee permissions are intentionally limited.
+   *
+   * ASSET_VIEW:
+   *   Allows viewing asset information.
+   *
+   * ASSET_RETURN:
+   *   Used for employee return-request functionality.
+   *
+   * No ASSET_CREATE, ASSET_EDIT, ASSET_DELETE,
+   * ASSET_ASSIGN, REPAIR_MANAGE, LICENSE_MANAGE,
+   * EMPLOYEE_MANAGE, USER_MANAGE, or AUDIT_VIEW.
+   */
+
+  const employeePermissions = [
+  'ASSET_VIEW',
+  'ASSET_RETURN',
+  'DOCUMENT_VIEW'
+];
+
+  for (const permissionName of employeePermissions) {
+    await prisma.rolePermission.create({
+      data: {
+        roleId: employeeRole.id,
+        permissionId: permissions[permissionName].id
+      }
+    });
+  }
+
+  console.log('Created EMPLOYEE role.');
+
+  // ============================================================
+  // 4. CREATE DEFAULT USERS
+  // ============================================================
+
   const passwordHash = await bcrypt.hash('password123', 10);
+
+  // ---------------- SUPER ADMIN USER ----------------
+
   const adminUser = await prisma.user.create({
     data: {
       email: 'admin@company.com',
       name: 'Sarah Connor',
-      passwordHash
+      passwordHash,
+      roleId: superAdminRole.id
     }
   });
 
-  console.log(`Created user: ${adminUser.email} (Password: password123)`);
+  console.log(
+    `Created user: ${adminUser.email} with role SUPER_ADMIN`
+  );
 
-  // 3. Seed Employees
+  // ---------------- IT SUPPORT USER ----------------
+
+  const itSupportUser = await prisma.user.create({
+    data: {
+      email: 'it.support@company.com',
+      name: 'IT Support User',
+      passwordHash,
+      roleId: itSupportRole.id
+    }
+  });
+
+  console.log(
+    `Created user: ${itSupportUser.email} with role IT_SUPPORT`
+  );
+
+  // ============================================================
+  // 5. SEED EMPLOYEES
+  // ============================================================
+
   const employeesData = [
     {
       employeeId: 'EMP-1001',
@@ -36,7 +232,17 @@ async function main() {
       email: 'rahul.sharma@company.com',
       department: 'Engineering',
       designation: 'Senior Fullstack Engineer',
-      joinDate: new Date('2023-01-15')
+      manager: 'Sarah Connor',
+      employmentType: 'FULL_TIME',
+      workLocation: 'HQ - Floor 3',
+      employmentStatus: 'ACTIVE',
+      joinDate: new Date('2023-01-15'),
+      dob: new Date('1998-06-15'),
+      gender: 'Male',
+      bloodGroup: 'B+',
+      phone: '+91 9876543210',
+      address: 'Bengaluru, Karnataka',
+      profilePhoto: null
     },
     {
       employeeId: 'EMP-1002',
@@ -44,7 +250,17 @@ async function main() {
       email: 'priya.patel@company.com',
       department: 'Product Design',
       designation: 'Lead UI/UX Designer',
-      joinDate: new Date('2023-03-01')
+      manager: 'David Miller',
+      employmentType: 'FULL_TIME',
+      workLocation: 'HQ - Floor 3',
+      employmentStatus: 'ACTIVE',
+      joinDate: new Date('2023-03-01'),
+      dob: new Date('1997-09-22'),
+      gender: 'Female',
+      bloodGroup: 'O+',
+      phone: '+91 9876543211',
+      address: 'Ahmedabad, Gujarat',
+      profilePhoto: null
     },
     {
       employeeId: 'EMP-1003',
@@ -52,7 +268,17 @@ async function main() {
       email: 'amit.verma@company.com',
       department: 'DevOps & Infra',
       designation: 'Site Reliability Engineer',
-      joinDate: new Date('2023-06-10')
+      manager: 'Sarah Connor',
+      employmentType: 'FULL_TIME',
+      workLocation: 'HQ - Floor 2',
+      employmentStatus: 'ACTIVE',
+      joinDate: new Date('2023-06-10'),
+      dob: new Date('1996-12-10'),
+      gender: 'Male',
+      bloodGroup: 'A+',
+      phone: '+91 9876543212',
+      address: 'Noida, Uttar Pradesh',
+      profilePhoto: null
     },
     {
       employeeId: 'EMP-1004',
@@ -60,7 +286,17 @@ async function main() {
       email: 'sneha.reddy@company.com',
       department: 'Human Resources',
       designation: 'HR Business Partner',
-      joinDate: new Date('2022-11-20')
+      manager: 'Sarah Connor',
+      employmentType: 'FULL_TIME',
+      workLocation: 'HQ - Floor 1',
+      employmentStatus: 'ACTIVE',
+      joinDate: new Date('2022-11-20'),
+      dob: new Date('1995-04-18'),
+      gender: 'Female',
+      bloodGroup: 'AB+',
+      phone: '+91 9876543213',
+      address: 'Hyderabad, Telangana',
+      profilePhoto: null
     },
     {
       employeeId: 'EMP-1005',
@@ -68,7 +304,17 @@ async function main() {
       email: 'david.miller@company.com',
       department: 'Product Management',
       designation: 'Principal Product Manager',
-      joinDate: new Date('2023-08-05')
+      manager: 'Sarah Connor',
+      employmentType: 'FULL_TIME',
+      workLocation: 'HQ - Floor 1',
+      employmentStatus: 'ACTIVE',
+      joinDate: new Date('2023-08-05'),
+      dob: new Date('1993-02-11'),
+      gender: 'Male',
+      bloodGroup: 'O-',
+      phone: '+91 9876543214',
+      address: 'Mumbai, Maharashtra',
+      profilePhoto: null
     },
     {
       employeeId: 'EMP-1006',
@@ -76,18 +322,56 @@ async function main() {
       email: 'ananya.gupta@company.com',
       department: 'Engineering',
       designation: 'Frontend Engineer II',
-      joinDate: new Date('2024-02-01')
+      manager: 'Rahul Sharma',
+      employmentType: 'FULL_TIME',
+      workLocation: 'HQ - Floor 3',
+      employmentStatus: 'ACTIVE',
+      joinDate: new Date('2024-02-01'),
+      dob: new Date('1999-08-25'),
+      gender: 'Female',
+      bloodGroup: 'B+',
+      phone: '+91 9876543215',
+      address: 'Pune, Maharashtra',
+      profilePhoto: null
     }
   ];
 
   const employees = {};
+
   for (const emp of employeesData) {
-    const created = await prisma.employee.create({ data: emp });
+    const created = await prisma.employee.create({
+      data: emp
+    });
+
     employees[emp.employeeId] = created;
   }
-  console.log(`Created ${Object.keys(employees).length} employees.`);
 
-  // 4. Seed Assets
+  console.log(
+    `Created ${Object.keys(employees).length} employees.`
+  );
+
+  // ============================================================
+  // 6. CREATE EMPLOYEE LOGIN ACCOUNT
+  // ============================================================
+
+  const employeeUser = await prisma.user.create({
+    data: {
+      email: 'rahul.sharma@company.com',
+      name: 'Rahul Sharma',
+      passwordHash,
+      roleId: employeeRole.id,
+      employeeId: employees['EMP-1001'].id
+    }
+  });
+
+  console.log(
+    `Created employee user: ${employeeUser.email} linked to ${employees['EMP-1001'].employeeId}`
+  );
+
+  // ============================================================
+  // 7. SEED ASSETS
+  // ============================================================
+
   const assetsData = [
     // Laptops
     {
@@ -124,7 +408,8 @@ async function main() {
       purchaseCost: 165000,
       location: 'Floor 2 - Server Ops',
       status: 'IN_REPAIR',
-      notes: 'Trackpad unresponsive; sent to Lenovo authorized service center'
+      notes:
+        'Trackpad unresponsive; sent to Lenovo authorized service center'
     },
     {
       assetTag: 'LAP-004',
@@ -293,13 +578,23 @@ async function main() {
   ];
 
   const assets = {};
+
   for (const assetData of assetsData) {
-    const created = await prisma.asset.create({ data: assetData });
+    const created = await prisma.asset.create({
+      data: assetData
+    });
+
     assets[assetData.assetTag] = created;
   }
-  console.log(`Created ${Object.keys(assets).length} assets.`);
 
-  // 5. Seed Custody Records
+  console.log(
+    `Created ${Object.keys(assets).length} assets.`
+  );
+
+  // ============================================================
+  // 8. SEED CUSTODY RECORDS
+  // ============================================================
+
   // LAP-001 assigned to Rahul Sharma
   await prisma.custodyRecord.create({
     data: {
@@ -307,7 +602,8 @@ async function main() {
       employeeId: employees['EMP-1001'].id,
       checkoutDate: new Date('2024-01-15'),
       conditionCheckout: 'EXCELLENT',
-      notes: 'Issued with original 140W MagSafe charger and sleeve'
+      notes:
+        'Issued with original 140W MagSafe charger and sleeve'
     }
   });
 
@@ -355,7 +651,7 @@ async function main() {
     }
   });
 
-  // MON-003 assigned to Priya Patel (now RETURN_REQUESTED)
+  // MON-003 assigned to Priya Patel
   await prisma.custodyRecord.create({
     data: {
       assetId: assets['MON-003'].id,
@@ -366,7 +662,7 @@ async function main() {
     }
   });
 
-  // Historical closed custody: LAP-003 was previously assigned to Amit Verma before repair
+  // Historical closed custody: LAP-003 was previously assigned to Amit Verma
   await prisma.custodyRecord.create({
     data: {
       assetId: assets['LAP-003'].id,
@@ -381,34 +677,48 @@ async function main() {
 
   console.log('Created custody records.');
 
-  // 6. Seed Return Requests
+  // ============================================================
+  // 9. SEED RETURN REQUESTS
+  // ============================================================
+
   await prisma.returnRequest.create({
     data: {
       assetId: assets['MON-003'].id,
       employeeId: employees['EMP-1002'].id,
-      reason: 'Relocating to permanent remote setup; requesting compact single display',
-      conditionNotes: 'Screen pristine, no scratches, original box preserved',
+      reason:
+        'Relocating to permanent remote setup; requesting compact single display',
+      conditionNotes:
+        'Screen pristine, no scratches, original box preserved',
       status: 'PENDING',
       requestedAt: new Date('2026-09-18')
     }
   });
+
   console.log('Created return requests.');
 
-  // 7. Seed Service Records
+  // ============================================================
+  // 10. SEED SERVICE RECORDS
+  // ============================================================
+
   await prisma.serviceRecord.create({
     data: {
       assetId: assets['LAP-003'].id,
       vendor: 'Lenovo Authorized Service Partner (Nehru Place)',
-      issue: 'Trackpad hardware gesture failure and intermittent click detection',
+      issue:
+        'Trackpad hardware gesture failure and intermittent click detection',
       cost: 4500,
       serviceDate: new Date('2024-03-12'),
       status: 'OPEN'
     }
   });
+
   console.log('Created service records.');
 
-  // 8. Seed Software License Allocations
-  // JetBrains (LIC-001): Rahul Sharma & Amit Verma
+  // ============================================================
+  // 11. SEED SOFTWARE LICENSE ALLOCATIONS
+  // ============================================================
+
+  // JetBrains (LIC-001): Rahul Sharma, Amit Verma and Ananya Gupta
   await prisma.licenseAllocation.create({
     data: {
       assetId: assets['LIC-001'].id,
@@ -462,13 +772,17 @@ async function main() {
 
   console.log('Created license allocations.');
 
-  // 9. Seed Audit Logs
+  // ============================================================
+  // 12. SEED AUDIT LOGS
+  // ============================================================
+
   const auditEntries = [
     {
       action: 'SYSTEM_INITIALIZED',
       entityType: 'SYSTEM',
       entityId: null,
-      details: 'Enterprise Asset Management system initialized with seed database records.',
+      details:
+        'Enterprise Asset Management system initialized with seed database records.',
       performedBy: adminUser.id,
       createdAt: new Date('2024-01-01')
     },
@@ -476,7 +790,8 @@ async function main() {
       action: 'ASSET_CREATED',
       entityType: 'ASSET',
       entityId: assets['LAP-001'].id,
-      details: `Created LAPTOP asset [${assets['LAP-001'].assetTag}] Apple MacBook Pro 16" M3 Max`,
+      details:
+        `Created LAPTOP asset [${assets['LAP-001'].assetTag}] Apple MacBook Pro 16" M3 Max`,
       performedBy: adminUser.id,
       createdAt: new Date('2024-01-10')
     },
@@ -484,7 +799,8 @@ async function main() {
       action: 'ASSET_ASSIGNED',
       entityType: 'CUSTODY',
       entityId: assets['LAP-001'].id,
-      details: `Asset [LAP-001] assigned to Rahul Sharma (EMP-1001). Condition: EXCELLENT`,
+      details:
+        'Asset [LAP-001] assigned to Rahul Sharma (EMP-1001). Condition: EXCELLENT',
       performedBy: adminUser.id,
       createdAt: new Date('2024-01-15')
     },
@@ -492,7 +808,8 @@ async function main() {
       action: 'LICENSE_ALLOCATED',
       entityType: 'LICENSE',
       entityId: assets['LIC-001'].id,
-      details: `License seat for [JetBrains All Products Pack Enterprise] allocated to Rahul Sharma (EMP-1001)`,
+      details:
+        'License seat for [JetBrains All Products Pack Enterprise] allocated to Rahul Sharma (EMP-1001)',
       performedBy: adminUser.id,
       createdAt: new Date('2024-01-16')
     },
@@ -500,7 +817,8 @@ async function main() {
       action: 'REPAIR_STARTED',
       entityType: 'SERVICE',
       entityId: assets['LAP-003'].id,
-      details: `Asset [LAP-003] sent for repair to vendor Lenovo Authorized Service Partner. Issue: Trackpad hardware gesture failure`,
+      details:
+        'Asset [LAP-003] sent for repair to vendor Lenovo Authorized Service Partner. Issue: Trackpad hardware gesture failure',
       performedBy: adminUser.id,
       createdAt: new Date('2024-03-12')
     },
@@ -508,14 +826,17 @@ async function main() {
       action: 'RETURN_REQUESTED',
       entityType: 'RETURN_REQUEST',
       entityId: assets['MON-003'].id,
-      details: `Return requested for asset [MON-003] by Priya Patel. Reason: Relocating to permanent remote setup`,
+      details:
+        'Return requested for asset [MON-003] by Priya Patel. Reason: Relocating to permanent remote setup',
       performedBy: adminUser.id,
       createdAt: new Date('2026-09-18')
     }
   ];
 
   for (const entry of auditEntries) {
-    await prisma.auditLog.create({ data: entry });
+    await prisma.auditLog.create({
+      data: entry
+    });
   }
 
   console.log('Seeding completed successfully!');

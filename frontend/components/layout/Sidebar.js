@@ -3,6 +3,7 @@
 import React, { useState } from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
+import { useAuth } from "@/context/AuthContext"
 import {
   LayoutDashboard,
   Laptop,
@@ -12,6 +13,7 @@ import {
   Wrench,
   History,
   ShieldCheck,
+  FileText,
   ChevronLeft,
   ChevronRight,
 } from "lucide-react"
@@ -28,10 +30,24 @@ const NAV_ITEMS = [
   { name: "Returns", href: "/returns", icon: RotateCcw },
   { name: "Repairs", href: "/repairs", icon: Wrench },
   { name: "Audit Logs", href: "/audit-logs", icon: History },
+  { name: "Documents", href: "/documents", icon: FileText },
 ]
 
 export function Sidebar({ mobileOpen, setMobileOpen }) {
   const pathname = usePathname()
+  const { user } = useAuth()
+  const role = user?.role
+  const visibleNavItems =
+  role === "SUPER_ADMIN"
+    ? NAV_ITEMS
+    : role === "EMPLOYEE"
+      ? NAV_ITEMS.filter((item) =>
+          ["Dashboard", "Employees", "Assets", "Licenses", "Returns", "Repairs", "Documents"].includes(item.name)
+        )
+      : NAV_ITEMS.filter((item) =>
+          ["Dashboard", "Assets", "Returns", "Repairs"].includes(item.name)
+        )
+  console.log("CURRENT USER:", user)
   const [collapsed, setCollapsed] = useState(false)
 
   const NavContent = ({ isMobile = false }) => (
@@ -58,7 +74,7 @@ export function Sidebar({ mobileOpen, setMobileOpen }) {
 
         {/* Navigation Links */}
         <nav className="space-y-1 px-2">
-          {NAV_ITEMS.map((item) => {
+          {visibleNavItems.map((item) => {
             const Icon = item.icon
             const isActive =
               item.href === "/"

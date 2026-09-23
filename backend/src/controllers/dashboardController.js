@@ -2,6 +2,137 @@ import prisma from '../lib/prisma.js';
 
 export async function getDashboardStats(req, res, next) {
   try {
+    // ================================
+    // EMPLOYEE DASHBOARD
+    // ================================
+    if (req.user?.role === 'EMPLOYEE') {
+      const employeeId = req.user.employeeId;
+
+      const [
+        assignedAssets,
+        activeLicenseAllocations,
+        pendingReturns,
+        repairAssets,
+        documents
+      ] = await Promise.all([
+        // Employee's currently assigned assets
+        prisma.custodyRecord.findMany({
+         where: {
+  employeeId,
+  checkinDate: null,
+  asset: {
+    status: {
+      not: 'RETURN_REQUESTED'
+    }
+  }
+},
+          include: {
+            asset: true
+          },
+          orderBy: {
+            checkoutDate: 'desc'
+          }
+        }),
+
+        // Employee's active software licenses
+        prisma.licenseAllocation.findMany({
+          where: {
+            employeeId,
+            status: 'ACTIVE'
+          },
+          include: {
+            asset: true
+          },
+          orderBy: {
+            allocatedAt: 'desc'
+          }
+        }),
+
+        // Only this employee's pending return requests
+        prisma.returnRequest.findMany({
+          where: {
+            employeeId,
+            status: 'PENDING'
+          },
+          include: {
+            asset: true
+          },
+          orderBy: {
+            requestedAt: 'desc'
+          }
+        }),
+
+        // Only OPEN repairs for assets currently assigned to this employee
+        prisma.serviceRecord.findMany({
+          where: {
+            status: 'OPEN',
+            asset: {
+              status: 'IN_REPAIR',
+              custodyRecords: {
+                some: {
+                  employeeId,
+                  checkinDate: null
+                }
+              }
+            }
+          },
+          include: {
+            asset: true
+          },
+          orderBy: {
+            createdAt: 'desc'
+          }
+        }),
+
+        // Employee's handover documents
+        prisma.handoverDocument.findMany({
+          where: {
+            employeeId
+          },
+          include: {
+            asset: true
+          },
+          orderBy: {
+            createdAt: 'desc'
+          }
+        })
+      ]);
+
+      return res.json({
+        employeeDashboard: true,
+
+        stats: {
+          assignedAssets: assignedAssets.length,
+          activeLicenseAllocations: activeLicenseAllocations.length,
+          pendingReturns: pendingReturns.length,
+          repairRequests: repairAssets.length,
+          documents: documents.length
+        },
+
+        assignedAssets: assignedAssets.map(record => ({
+          id: record.asset.id,
+          assetTag: record.asset.assetTag,
+          brand: record.asset.brand,
+          model: record.asset.model,
+          category: record.asset.category,
+          status: record.asset.status,
+          assignedDate: record.checkoutDate
+        })),
+
+        licenses: activeLicenseAllocations,
+
+        returns: pendingReturns,
+
+        repairs: repairAssets,
+
+        documents
+      });
+    }
+
+    // ================================
+    // EXISTING ADMIN DASHBOARD
+    // ================================
+
     const [
       totalAssets,
       availableAssets,
@@ -28,7 +159,13 @@ export async function getDashboardStats(req, res, next) {
         take: 10,
         orderBy: { createdAt: 'desc' },
         include: {
-          user: { select: { id: true, name: true, email: true } }
+          user: {
+            select: {
+              id: true,
+              name: true,
+              email: true
+            }
+          }
         }
       }),
       prisma.asset.groupBy({
@@ -49,10 +186,12 @@ export async function getDashboardStats(req, res, next) {
         activeLicenseAllocations,
         totalEmployees
       },
+
       categoryBreakdown: categoryCounts.reduce((acc, curr) => {
         acc[curr.category] = curr._count.id;
         return acc;
       }, {}),
+
       recentActivities
     });
   } catch (error) {
@@ -75,13 +214,18 @@ export async function getNotifications(req, res, next) {
         where: { status: 'PENDING' },
         orderBy: { requestedAt: 'desc' },
         take: 5,
-        include: { asset: true, employee: true }
+        include: {
+          asset: true,
+          employee: true
+        }
       }),
+
       prisma.asset.findMany({
         where: { status: 'IN_REPAIR' },
         orderBy: { updatedAt: 'desc' },
         take: 5
       }),
+
       prisma.asset.findMany({
         where: {
           category: 'SOFTWARE_LICENSE',
@@ -89,13 +233,24 @@ export async function getNotifications(req, res, next) {
             lte: thirtyDaysFromNow
           }
         },
-        orderBy: { expirationDate: 'asc' },
+        orderBy: {
+          expirationDate: 'asc'
+        },
         take: 5
       }),
+
       prisma.auditLog.findMany({
         take: 5,
-        orderBy: { createdAt: 'desc' },
-        include: { user: { select: { name: true } } }
+        orderBy: {
+          createdAt: 'desc'
+        },
+        include: {
+          user: {
+            select: {
+              name: true
+            }
+          }
+        }
       })
     ]);
 
@@ -127,11 +282,16 @@ export async function getNotifications(req, res, next) {
 
     expiringLicenses.forEach(lic => {
       const isExpired = new Date(lic.expirationDate) < new Date();
+
       notifications.push({
         id: `license-${lic.id}`,
         type: isExpired ? 'LICENSE_EXPIRED' : 'LICENSE_EXPIRING',
-        title: isExpired ? `Expired License: ${lic.brand} ${lic.model}` : `Expiring Soon: ${lic.brand} ${lic.model}`,
-        description: isExpired ? 'License validity period has ended.' : `Expires on ${new Date(lic.expirationDate).toLocaleDateString()}`,
+        title: isExpired
+          ? `Expired License: ${lic.brand} ${lic.model}`
+          : `Expiring Soon: ${lic.brand} ${lic.model}`,
+        description: isExpired
+          ? 'License validity period has ended.'
+          : `Expires on ${new Date(lic.expirationDate).toLocaleDateString()}`,
         timestamp: lic.expirationDate,
         priority: isExpired ? 'high' : 'low',
         link: '/licenses'

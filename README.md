@@ -51,46 +51,112 @@ Illegal state transitions are rejected by the backend.
 * Record asset condition at issuance and return.
 * Maintain notes and historical custody records.
 * Preserve historical custody information for audit purposes.
+* Track the employee currently responsible for an assigned asset.
 
 ### Return Management
 
 * Employees can submit asset return requests.
+* Employees can view their own return requests.
 * Administrators can inspect returned assets.
+* Employees cannot process their own asset check-in.
+* Return requests contain:
+   * Asset information
+   * Employee information
+   * Return reason
+   * Condition notes
+   * Request status
+   * Request timestamp
+
 * Returned assets can be moved to:
 
   * `AVAILABLE`
   * `IN_REPAIR`
   * `RETIRED`
-
+* RETURN WORFLOW
+    Employee
+      ↓
+    Request Return
+      ↓
+    RETURN_REQUESTED
+      ↓
+    Admin / Authorized Staff Review
+      ↓
+    Process Check-in
+      ↓
+  AVAILABLE / IN_REPAIR / RETIRED
 ### Hardware Repairs
 
 * Create repair records.
-* Track vendor information and repair issues.
+*  Track vendor information.
+* Record repair issues.
 * Record repair costs.
-* Store resolution notes and timestamps.
-* Restore the asset to an appropriate state after repair.
+* Store resolution notes.
+* Store repair creation and resolution timestamps.
+* Restore assets to the appropriate state after repair.
+* Employees can view their repair information.
+* Authorized IT and management users can resolve repair records.
 
 ### Software License Management
 
-* Track software licenses and seat quotas.
+* Register and manage software licenses.
+*  Track software license keys.
+* Track license types.
+* Track seat quotas.
 * Monitor allocated versus available seats.
 * Prevent license over-allocation.
 * Prevent duplicate active assignments.
 * Track license expiration dates.
+* Track license allocations.
 * Revoke allocated seats when required.
+* Employees can view their allocated software licenses.
+* License management operations are restricted to authorized users.
 
+### Digital Handover Documents
+
+ * Handover documents are associated with:
+
+  *  Employee
+  *   Asset
+  *  Custody record
+  *    Document type
+  *   Document status
+  *   Employee signature
+  *   Administrator signature
+  *   Signature timestamps
+  *   Generated PDF document
+
+  Handover Workflow
+    PENDING_EMPLOYEE_SIGNATURE
+              ↓
+      Employee Signs
+              ↓
+        Admin Signs
+              ↓
+          COMPLETED
 ### Employee Management
 
 * Employee CRUD operations.
+*  Employee ID management.
 * Department information.
+* Employee contact information.
 * View assigned hardware.
 * View allocated software licenses.
+* View employee custody information.
+* Role-based employee access.
+* Employees can update their own permitted information.
+* Administrative employee operations are restricted to authorized  users.
 
 ### Audit Trail
 
-* Record important system events.
-* Track asset creation, updates, assignments, returns, state changes, and deletions.
-* Maintain chronological audit records.
+* The system can track events related to:
+
+  * Asset creation.
+  * Asset updates.
+  * Asset assignments.
+  * Asset returns.
+  * Asset state changes.
+  * Asset deletion.
+  * Other important system operations.
 
 ### Dashboard & Notifications
 
@@ -106,9 +172,11 @@ Illegal state transitions are rejected by the backend.
 * JWT-based authentication.
 * Password hashing using bcrypt.
 * Protected backend API routes.
-* Login validation and error handling.
-
----
+* Authentication validation.
+* Persistent authentication state.
+* Login error handling.
+* Secure logout functionality.
+* Role and permission information associated with authenticated users --
 
 ## 🛠 Technology Stack
 
@@ -145,35 +213,85 @@ Illegal state transitions are rejected by the backend.
 
 ## 📁 Project Structure
 
-```text
 AssetPilot/
+
 │
 ├── backend/
+│   │
 │   ├── prisma/
+│   │   ├── migrations/
 │   │   ├── schema.prisma
-│   │   └── seed.js
+│   │   ├── seed.js
+│   │   └── utility scripts
 │   │
 │   └── src/
 │       ├── controllers/
 │       ├── middleware/
 │       ├── routes/
 │       ├── services/
+│       ├── lib/
 │       └── server.js
 │
 ├── frontend/
+│   │
 │   ├── app/
+│   │   ├── (dashboard)/
+│   │   │   ├── assets/
+│   │   │   ├── employees/
+│   │   │   ├── licenses/
+│   │   │   ├── returns/
+│   │   │   ├── repairs/
+│   │   │   └── ...
+│   │   │
+│   │   └── login/
+│   │
 │   ├── components/
 │   ├── context/
+│   │   └── AuthContext.js
 │   ├── lib/
+│   │   └── utils.js
 │   └── services/
+│       └── api.js
 │
 ├── .gitignore
 ├── package.json
 └── README.md
-```
-
----
-
+### APPLICATION ARCHITECTURE
+┌──────────────────────────────┐
+│          Frontend            │
+│      Next.js / React         │
+│                              │
+│  Dashboard                   │
+│  Assets                      │
+│  Employees                   │
+│  Licenses                    │
+│  Returns                     │
+│  Repairs                     │
+│  Documents                   │
+└──────────────┬───────────────┘
+               │
+               │ REST API
+               ▼
+┌──────────────────────────────┐
+│           Backend            │
+│      Node.js / Express       │
+│                              │
+│ Authentication               │
+│ Authorization / RBAC         │
+│ Controllers                  │
+│ Business Logic               │
+│ Asset Lifecycle              │
+└──────────────┬───────────────┘
+               │
+               ▼
+┌──────────────────────────────┐
+│         Prisma ORM           │
+└──────────────┬───────────────┘
+               │
+               ▼
+┌──────────────────────────────┐
+│         PostgreSQL           │
+└──────────────────────────────┘
 ## 🚀 Getting Started
 
 ### Prerequisites
@@ -187,17 +305,15 @@ Make sure the following are installed:
 
 ### 1. Clone the repository
 
-```bash
 git clone <your-repository-url>
 cd AssetPilot
-```
+
 
 ### 2. Install backend dependencies
 
-```bash
+
 cd backend
 npm install
-```
 
 ### 3. Configure backend environment variables
 
@@ -205,13 +321,13 @@ Create a `.env` file inside the `backend` directory.
 
 Example:
 
-```env
+
 PORT=5001
 POSTGRES_URL="your-postgresql-connection-string"
 JWT_SECRET="your-jwt-secret"
 JWT_EXPIRES_IN="7d"
 CORS_ORIGIN="http://localhost:3000"
-```
+
 
 **Never commit the `.env` file to GitHub.**
 
@@ -219,56 +335,54 @@ CORS_ORIGIN="http://localhost:3000"
 
 From the `backend` directory:
 
-```bash
+
 npx prisma db push
-```
+
 
 If the project uses seed data:
 
-```bash
+
 npx prisma db seed
-```
+
 
 ### 5. Start the backend
 
-```bash
+
 npm run dev
-```
+
 
 The backend API runs on:
 
-```text
 http://localhost:5001
-```
+
 
 ### 6. Install frontend dependencies
 
 Open another terminal:
 
-```bash
 cd frontend
 npm install
-```
+
 
 ### 7. Start the frontend
 
-```bash
+
 npm run dev
-```
+
 
 The frontend runs on:
 
-```text
+
 http://localhost:3000
-```
+
 
 Open the application in your browser:
 
-```text
-http://localhost:3000
-```
 
----
+http://localhost:3000
+
+
+
 
 ## 🔐 Demo Account
 
@@ -280,16 +394,23 @@ Use the credentials configured by the project's seed/setup process.
 
 > For production deployments, use strong unique credentials and secrets.
 
----
 
 ## 🔒 Security Notes
 
 * Environment variables are stored in `.env` and excluded through `.gitignore`.
 * JWT secrets should be unique and securely generated.
 * Database credentials should never be committed to the repository.
-* Change development credentials before deploying the application to a production environment.
+* Passwords are hashed using bcrypt.
+*  Protected API routes require authentication.
+*   Backend authorization validates user permissions.
+*   Frontend controls do not replace backend authorization.
+*   Employees are restricted to permitted employee-level operations.
+*   Employees cannot process their own asset check-in.
+*   License-management actions are restricted to authorized roles.
+*   Repair-resolution actions are restricted to authorized roles.
+*   Digital handover documents are protected using document permissions.
+*   Development credentials should be changed before production deployment.
 
----
 
 ## 📌 Project Status
 
@@ -311,19 +432,29 @@ AssetPilot is an academic/internship project demonstrating:
 
 The project is structured as two applications:
 
-```text
-Frontend → Next.js
-              ↓
-           REST API
-              ↓
-Backend → Node.js / Express
-              ↓
-          Prisma ORM
-              ↓
-         PostgreSQL
-```
-
----
+                 ┌───────────────────┐
+                 │       User        │
+                 └─────────┬─────────┘
+                           │
+                           ▼
+                 ┌───────────────────┐
+                 │      Vercel       │
+                 │     Frontend      │
+                 └─────────┬─────────┘
+                           │
+                         HTTPS
+                           │
+                           ▼
+                 ┌───────────────────┐
+                 │      Render       │
+                 │      Backend      │
+                 └─────────┬─────────┘
+                           │
+                           ▼
+                 ┌───────────────────┐
+                 │    PostgreSQL     │
+                 │     Database      │
+                 └───────────────────┘
 
 ## 📄 License
 

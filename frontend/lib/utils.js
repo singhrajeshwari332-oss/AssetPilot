@@ -1,35 +1,33 @@
-import { clsx } from "clsx";
-import { twMerge } from "tailwind-merge";
-
-export function cn(...inputs) {
-  return twMerge(clsx(inputs));
-}
-
+import { clsx } from "clsx"
+import { twMerge } from "tailwind-merge"
 export function formatCurrency(amount) {
-  if (amount === null || amount === undefined) return "—";
-  return new Intl.NumberFormat('en-IN', {
-    style: 'currency',
-    currency: 'INR',
-    maximumFractionDigits: 0
-  }).format(amount);
+  if (amount === null || amount === undefined) return "-"
+
+  return new Intl.NumberFormat("en-IN", {
+    style: "currency",
+    currency: "INR",
+    maximumFractionDigits: 2,
+  }).format(amount)
+}
+export function cn(...inputs) {
+  return twMerge(clsx(inputs))
 }
 
-export function formatDate(dateString) {
-  if (!dateString) return "—";
-  return new Date(dateString).toLocaleDateString("en-US", {
-    year: "numeric",
+export function formatDate(date) {
+  if (!date) return "-"
+
+  return new Date(date).toLocaleDateString("en-IN", {
+    day: "2-digit",
     month: "short",
-    day: "numeric"
-  });
+    year: "numeric",
+  })
 }
 
-export function formatDateTime(dateString) {
-  if (!dateString) return "—";
-  return new Date(dateString).toLocaleString("en-US", {
-    year: "numeric",
-    month: "short",
-    day: "numeric",
-    hour: "2-digit",
-    minute: "2-digit"
-  });
+export function formatDateTime(date) {
+  if (!date) return "-"
+
+  return new Date(date).toLocaleString("en-IN", {
+    dateStyle: "medium",
+    timeStyle: "short",
+  })
 }

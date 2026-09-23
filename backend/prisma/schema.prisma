@@ -6,15 +6,52 @@ datasource db {
   provider = "postgresql"
   url      = env("POSTGRES_URL")
 }
-
 model User {
-  id           String     @id @default(uuid())
-  email        String     @unique
+  id           String       @id @default(uuid())
+  email        String       @unique
   passwordHash String
   name         String
-  createdAt    DateTime   @default(now())
-  updatedAt    DateTime   @updatedAt
+  roleId       String?
+  employeeId   String?      @unique
+
+  role         Role?        @relation(fields: [roleId], references: [id])
+  employee     Employee?    @relation(fields: [employeeId], references: [id])
+
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
   auditLogs    AuditLog[]
+}
+
+model Role {
+  id          String           @id @default(uuid())
+  name        String           @unique
+  description String?
+  users       User[]
+  permissions RolePermission[]
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+}
+
+model Permission {
+  id          String           @id @default(uuid())
+  name        String           @unique
+  description String?
+  roles       RolePermission[]
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+}
+
+model RolePermission {
+  id           String     @id @default(uuid())
+  roleId       String
+  permissionId String
+
+  role         Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission   Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  createdAt    DateTime   @default(now())
+
+  @@unique([roleId, permissionId])
 }
 
 model Employee {
@@ -22,8 +59,16 @@ model Employee {
   employeeId         String              @unique
   name               String
   email              String              @unique
+
+  // Work information
   department         String
   designation        String
+  manager            String?
+  employmentType     String?             // FULL_TIME, PART_TIME, INTERN, CONTRACT
+  workLocation       String?
+  employmentStatus   String              @default("ACTIVE") // ACTIVE, ON_LEAVE, RESIGNED, TERMINATED
+
+  // Personal information
   joinDate           DateTime            @default(now())
   exitDate           DateTime?
   dob                DateTime?
@@ -31,11 +76,20 @@ model Employee {
   bloodGroup         String?
   phone              String?
   address            String?
+  profilePhoto       String?
+
+  // System timestamps
   createdAt          DateTime            @default(now())
   updatedAt          DateTime            @updatedAt
+
+  // Login account
+  user               User?
+
+  // Asset management
   custodyRecords     CustodyRecord[]
   returnRequests     ReturnRequest[]
   licenseAllocations LicenseAllocation[]
+  handoverDocuments HandoverDocument[]
 }
 
 model Asset {
@@ -61,6 +115,7 @@ model Asset {
   returnRequests     ReturnRequest[]
   serviceRecords     ServiceRecord[]
   licenseAllocations LicenseAllocation[]
+  handoverDocuments HandoverDocument[]
 }
 
 model CustodyRecord {
@@ -75,8 +130,9 @@ model CustodyRecord {
   createdAt         DateTime  @default(now())
   updatedAt         DateTime  @updatedAt
 
-  asset             Asset     @relation(fields: [assetId], references: [id], onDelete: Cascade)
+   asset             Asset     @relation(fields: [assetId], references: [id], onDelete: Cascade)
   employee          Employee  @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  handoverDocument  HandoverDocument?
 }
 
 model ReturnRequest {
@@ -136,4 +192,36 @@ model AuditLog {
   performedBy String?
   user        User?    @relation(fields: [performedBy], references: [id], onDelete: SetNull)
   createdAt   DateTime @default(now())
+}
+model HandoverDocument {
+  id                  String        @id @default(uuid())
+  documentId          String        @unique
+
+  custodyRecordId     String @unique
+  employeeId          String
+  assetId             String
+
+  documentType        String        @default("HANDOVER")
+  status              String        @default("PENDING_EMPLOYEE_SIGNATURE")
+  // HANDOVER, RETURN
+  // PENDING_EMPLOYEE_SIGNATURE, PENDING_ADMIN_SIGNATURE, COMPLETED, CANCELLED
+
+  employeeSignedAt    DateTime?
+  adminSignedAt       DateTime?
+
+  employeeSignature   String?
+  adminSignature      String?
+
+  pdfData             Bytes?
+
+  createdAt           DateTime      @default(now())
+  updatedAt           DateTime      @updatedAt
+
+  custodyRecord       CustodyRecord @relation(fields: [custodyRecordId], references: [id], onDelete: Cascade)
+  employee            Employee      @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  asset               Asset         @relation(fields: [assetId], references: [id], onDelete: Cascade)
+
+  @@index([employeeId])
+  @@index([assetId])
+  @@index([status])
 }

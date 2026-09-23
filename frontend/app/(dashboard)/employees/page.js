@@ -45,6 +45,7 @@ import {
 } from "lucide-react"
 import api from "@/services/api"
 import { toast } from "sonner"
+import { useAuth } from "@/context/AuthContext"
 
 const DEPARTMENTS = [
   { value: "ALL", label: "All Departments" },
@@ -57,12 +58,18 @@ const DEPARTMENTS = [
 ]
 
 export default function EmployeesPage() {
+  const { user } = useAuth()
+
   const [employees, setEmployees] = useState([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState("")
   const [department, setDepartment] = useState("ALL")
   const [page, setPage] = useState(1)
-  const [pagination, setPagination] = useState({ total: 0, totalPages: 1, limit: 10 })
+  const [pagination, setPagination] = useState({
+    total: 0,
+    totalPages: 1,
+    limit: 10,
+  })
 
   const [dialogOpen, setDialogOpen] = useState(false)
   const [editingEmployee, setEditingEmployee] = useState(null)
@@ -77,15 +84,25 @@ export default function EmployeesPage() {
   const fetchEmployees = useCallback(async () => {
     try {
       setLoading(true)
+
       const params = {
         page,
         limit: 10,
         search: search.trim(),
         department,
       }
+
       const res = await api.get("/employees", { params })
+
       setEmployees(res.data?.data || [])
-      setPagination(res.data?.pagination || { total: 0, totalPages: 1, limit: 10 })
+
+      setPagination(
+        res.data?.pagination || {
+          total: 0,
+          totalPages: 1,
+          limit: 10,
+        }
+      )
     } catch (err) {
       console.error("Failed to fetch employees:", err)
       toast.error("Failed to load employee directory.")
@@ -100,18 +117,74 @@ export default function EmployeesPage() {
 
   const handleDeleteEmployee = async () => {
     if (!deleteModal.employee) return
-    setDeleteModal((prev) => ({ ...prev, loading: true }))
+
+    setDeleteModal((prev) => ({
+      ...prev,
+      loading: true,
+    }))
 
     try {
       await api.delete(`/employees/${deleteModal.employee.id}`)
-      toast.success(`✓ Employee ${deleteModal.employee.name} deleted successfully.`)
-      setDeleteModal({ open: false, employee: null, loading: false })
+
+      toast.success(
+        `✓ Employee ${deleteModal.employee.name} deleted successfully.`
+      )
+
+      setDeleteModal({
+        open: false,
+        employee: null,
+        loading: false,
+      })
+
       fetchEmployees()
     } catch (err) {
-      const msg = err.response?.data?.message || "✕ Failed to delete employee."
+      const msg =
+        err.response?.data?.message ||
+        "✕ Failed to delete employee."
+
       toast.error(msg)
-      setDeleteModal((prev) => ({ ...prev, loading: false }))
+
+      setDeleteModal((prev) => ({
+        ...prev,
+        loading: false,
+      }))
     }
+  }
+
+  /*
+   * Permission rules
+   *
+   * SUPER_ADMIN:
+   * - Can add employees
+   * - Can edit employees
+   * - Can delete employees
+   *
+   * EMPLOYEE:
+   * - Can edit only their own employee record
+   * - Cannot delete employees
+   *
+   * Other roles:
+   * - Cannot edit or delete employees
+   */
+  const isSuperAdmin = user?.role === "SUPER_ADMIN"
+  const isEmployee = user?.role === "EMPLOYEE"
+
+  const canEditEmployee = (employee) => {
+    if (isSuperAdmin) return true
+
+    if (
+      isEmployee &&
+      user?.employeeId &&
+      employee?.id === user.employeeId
+    ) {
+      return true
+    }
+
+    return false
+  }
+
+  const canDeleteEmployee = () => {
+    return isSuperAdmin
   }
 
   return (
@@ -122,10 +195,13 @@ export default function EmployeesPage() {
           <h1 className="text-xl font-bold tracking-tight text-foreground">
             Personnel & Custody Directory
           </h1>
+
           <p className="text-xs text-muted-foreground mt-0.5">
-            Manage company employees, their active hardware assignments, and software licenses.
+            Manage company employees, their active hardware assignments, and
+            software licenses.
           </p>
         </div>
+
         <div className="flex items-center gap-2">
           <Button
             variant="outline"
@@ -134,20 +210,29 @@ export default function EmployeesPage() {
             disabled={loading}
             className="h-8 gap-1.5 text-xs"
           >
-            <RefreshCw className={`h-3.5 w-3.5 ${loading ? "animate-spin" : ""}`} />
+            <RefreshCw
+              className={`h-3.5 w-3.5 ${
+                loading ? "animate-spin" : ""
+              }`}
+            />
+
             <span>Refresh</span>
           </Button>
-          <Button
-            size="sm"
-            onClick={() => {
-              setEditingEmployee(null)
-              setDialogOpen(true)
-            }}
-            className="h-8 gap-1.5 text-xs font-medium"
-          >
-            <Plus className="h-3.5 w-3.5" />
-            <span>Add Employee</span>
-          </Button>
+
+          {isSuperAdmin && (
+            <Button
+              size="sm"
+              onClick={() => {
+                setEditingEmployee(null)
+                setDialogOpen(true)
+              }}
+              className="h-8 gap-1.5 text-xs font-medium"
+            >
+              <Plus className="h-3.5 w-3.5" />
+
+              <span>Add Employee</span>
+            </Button>
+          )}
         </div>
       </div>
 
@@ -155,6 +240,7 @@ export default function EmployeesPage() {
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between bg-card p-3 rounded-lg border">
         <div className="relative flex-1 max-w-sm">
           <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+
           <Input
             placeholder="Search by name, ID, email, role..."
             value={search}
@@ -175,12 +261,20 @@ export default function EmployeesPage() {
                 setPage(1)
               }}
             >
-              <SelectTrigger className="h-8 text-xs bg-background">
+              <SelectTrigger
+  aria-label="Filter employees by department"
+  className="h-8 text-xs bg-background"
+>
                 <SelectValue placeholder="Department" />
               </SelectTrigger>
+
               <SelectContent>
                 {DEPARTMENTS.map((dept) => (
-                  <SelectItem key={dept.value} value={dept.value} className="text-xs">
+                  <SelectItem
+                    key={dept.value}
+                    value={dept.value}
+                    className="text-xs"
+                  >
                     {dept.label}
                   </SelectItem>
                 ))}
@@ -210,16 +304,40 @@ export default function EmployeesPage() {
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead className="w-[110px]">Employee ID</TableHead>
-              <TableHead>Employee Details</TableHead>
-              <TableHead>Department</TableHead>
-              <TableHead className="hidden md:table-cell">Designation</TableHead>
-              <TableHead>Assigned Assets</TableHead>
-              <TableHead className="hidden lg:table-cell">Active Licenses</TableHead>
-              <TableHead className="hidden xl:table-cell">Joined Date</TableHead>
-              <TableHead className="text-right w-[70px]">Actions</TableHead>
+              <TableHead className="w-[110px]">
+                Employee ID
+              </TableHead>
+
+              <TableHead>
+                Employee Details
+              </TableHead>
+
+              <TableHead>
+                Department
+              </TableHead>
+
+              <TableHead className="hidden md:table-cell">
+                Designation
+              </TableHead>
+
+              <TableHead>
+                Assigned Assets
+              </TableHead>
+
+              <TableHead className="hidden lg:table-cell">
+                Active Licenses
+              </TableHead>
+
+              <TableHead className="hidden xl:table-cell">
+                Joined Date
+              </TableHead>
+
+              <TableHead className="text-right w-[70px]">
+                Actions
+              </TableHead>
             </TableRow>
           </TableHeader>
+
           <TableBody>
             {loading ? (
               <TableSkeleton rows={6} columns={8} />
@@ -230,91 +348,133 @@ export default function EmployeesPage() {
                     icon={Users}
                     title="No employees found"
                     description="No personnel records matched your filter criteria."
-                    actionLabel="Add New Employee"
-                    onAction={() => {
-                      setEditingEmployee(null)
-                      setDialogOpen(true)
-                    }}
+                    actionLabel={
+                      isSuperAdmin ? "Add New Employee" : undefined
+                    }
+                    onAction={
+                      isSuperAdmin
+                        ? () => {
+                            setEditingEmployee(null)
+                            setDialogOpen(true)
+                          }
+                        : undefined
+                    }
                   />
                 </TableCell>
               </TableRow>
             ) : (
               employees.map((emp) => (
-                <TableRow key={emp.id} className="hover:bg-muted/40 transition-colors">
+                <TableRow
+                  key={emp.id}
+                  className="hover:bg-muted/40 transition-colors"
+                >
                   <TableCell className="font-mono text-xs font-bold text-foreground">
                     <span className="px-1.5 py-0.5 rounded bg-muted border">
                       {emp.employeeId}
                     </span>
                   </TableCell>
+
                   <TableCell>
-                    <div 
+                    <div
                       className="flex flex-col cursor-pointer group"
                       onClick={() => setDetailsEmployee(emp)}
                     >
                       <span className="font-semibold text-xs text-foreground group-hover:text-primary transition-colors hover:underline">
                         {emp.name}
                       </span>
-                      <span className="text-[11px] text-muted-foreground group-hover:text-primary/70 transition-colors">
+
+                      <span className="text-xs text-muted-foreground group-hover:text-primary/70 transition-colors">
                         {emp.email}
                       </span>
                     </div>
                   </TableCell>
+
                   <TableCell className="text-xs text-muted-foreground font-medium">
                     {emp.department}
                   </TableCell>
+
                   <TableCell className="hidden md:table-cell text-xs text-muted-foreground">
                     {emp.designation}
                   </TableCell>
+
                   <TableCell>
                     <div className="flex items-center gap-1.5">
-                      <span className="inline-flex items-center gap-1 rounded-md bg-sky-500/10 px-2 py-0.5 text-xs font-semibold text-sky-700 dark:text-sky-400">
+                      <span className="inline-flex items-center gap-1 rounded-full border border-border px-2 py-0.5 text-xs text-muted-foreground">
                         <Laptop className="h-3 w-3" />
+
                         {emp.activeAssetsCount || 0} Assets
                       </span>
                     </div>
                   </TableCell>
+
                   <TableCell className="hidden lg:table-cell">
-                    <span className="inline-flex items-center gap-1 rounded-md bg-purple-500/10 px-2 py-0.5 text-xs font-semibold text-purple-700 dark:text-purple-400">
+                    <span className="inline-flex items-center gap-1 rounded-full border border-border px-2 py-0.5 text-xs text-muted-foreground">
                       <KeyRound className="h-3 w-3" />
+
                       {emp.activeLicensesCount || 0} Seats
                     </span>
                   </TableCell>
+
                   <TableCell className="hidden xl:table-cell text-xs text-muted-foreground">
                     {formatDate(emp.joinDate)}
                   </TableCell>
+
                   <TableCell className="text-right">
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-7 w-7 text-muted-foreground hover:text-foreground"
-                          aria-label="Employee actions"
+                    {(canEditEmployee(emp) ||
+                      canDeleteEmployee()) && (
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-7 w-7 text-muted-foreground hover:text-foreground"
+                            aria-label="Employee actions"
+                          >
+                            <MoreHorizontal className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+
+                        <DropdownMenuContent
+                          align="end"
+                          className="w-40 text-xs"
                         >
-                          <MoreHorizontal className="h-4 w-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end" className="w-40 text-xs">
-                        <DropdownMenuItem
-                          onClick={() => {
-                            setEditingEmployee(emp)
-                            setDialogOpen(true)
-                          }}
-                          className="gap-2 cursor-pointer"
-                        >
-                          <Edit className="h-3.5 w-3.5" />
-                          <span>Edit Details</span>
-                        </DropdownMenuItem>
-                        <DropdownMenuItem
-                          onClick={() => setDeleteModal({ open: true, employee: emp, loading: false })}
-                          disabled={emp.activeAssetsCount > 0 || emp.activeLicensesCount > 0}
-                          className="gap-2 text-destructive focus:bg-destructive/10 focus:text-destructive cursor-pointer"
-                        >
-                          <Trash2 className="h-3.5 w-3.5" />
-                          <span>Delete Employee</span>
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
+                          {canEditEmployee(emp) && (
+                            <DropdownMenuItem
+                              onClick={() => {
+                                setEditingEmployee(emp)
+                                setDialogOpen(true)
+                              }}
+                              className="gap-2 cursor-pointer"
+                            >
+                              <Edit className="h-3.5 w-3.5" />
+
+                              <span>Edit Details</span>
+                            </DropdownMenuItem>
+                          )}
+
+                          {canDeleteEmployee() && (
+                            <DropdownMenuItem
+                              onClick={() =>
+                                setDeleteModal({
+                                  open: true,
+                                  employee: emp,
+                                  loading: false,
+                                })
+                              }
+                              disabled={
+                                emp.activeAssetsCount > 0 ||
+                                emp.activeLicensesCount > 0
+                              }
+                              className="gap-2 text-destructive focus:bg-destructive/10 focus:text-destructive cursor-pointer"
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+
+                              <span>Delete Employee</span>
+                            </DropdownMenuItem>
+                          )}
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    )}
                   </TableCell>
                 </TableRow>
               ))
@@ -327,32 +487,58 @@ export default function EmployeesPage() {
           <div>
             Showing{" "}
             <span className="font-medium text-foreground">
-              {employees.length === 0 ? 0 : (page - 1) * pagination.limit + 1}
+              {employees.length === 0
+                ? 0
+                : (page - 1) * pagination.limit + 1}
             </span>{" "}
             to{" "}
             <span className="font-medium text-foreground">
-              {Math.min(page * pagination.limit, pagination.total)}
+              {Math.min(
+                page * pagination.limit,
+                pagination.total
+              )}
             </span>{" "}
-            of <span className="font-medium text-foreground">{pagination.total}</span> employees
+            of{" "}
+            <span className="font-medium text-foreground">
+              {pagination.total}
+            </span>{" "}
+            employees
           </div>
+
           <div className="flex items-center gap-1.5">
             <Button
               variant="outline"
               size="sm"
-              onClick={() => setPage((p) => Math.max(1, p - 1))}
+              aria-label="Previous page"
+              onClick={() =>
+                setPage((p) => Math.max(1, p - 1))
+              }
               disabled={page <= 1 || loading}
               className="h-7 w-7 p-0"
             >
               <ChevronLeft className="h-4 w-4" />
             </Button>
+
             <span className="px-2">
               Page {page} of {pagination.totalPages || 1}
             </span>
+
             <Button
               variant="outline"
               size="sm"
-              onClick={() => setPage((p) => Math.min(pagination.totalPages, p + 1))}
-              disabled={page >= pagination.totalPages || loading}
+              aria-label="Next page"
+              onClick={() =>
+                setPage((p) =>
+                  Math.min(
+                    pagination.totalPages,
+                    p + 1
+                  )
+                )
+              }
+              disabled={
+                page >= pagination.totalPages ||
+                loading
+              }
               className="h-7 w-7 p-0"
             >
               <ChevronRight className="h-4 w-4" />
@@ -372,7 +558,12 @@ export default function EmployeesPage() {
       {/* Delete Confirmation Modal */}
       <ConfirmDialog
         open={deleteModal.open}
-        onOpenChange={(open) => setDeleteModal((prev) => ({ ...prev, open }))}
+        onOpenChange={(open) =>
+          setDeleteModal((prev) => ({
+            ...prev,
+            open,
+          }))
+        }
         title="Delete Employee Record?"
         description={`Are you sure you want to permanently remove employee [${deleteModal.employee?.employeeId}] ${deleteModal.employee?.name}? This action cannot be undone.`}
         confirmLabel="Delete Employee"

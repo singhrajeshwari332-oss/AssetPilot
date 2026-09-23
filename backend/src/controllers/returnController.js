@@ -1,7 +1,6 @@
 import prisma from '../lib/prisma.js';
 import { validateStateTransition } from '../services/stateMachine.js';
 import { logAudit } from '../services/auditService.js';
-
 export async function getReturnRequests(req, res, next) {
   try {
     const { status, page = 1, limit = 15 } = req.query;
@@ -12,8 +11,14 @@ export async function getReturnRequests(req, res, next) {
 
     const where = {};
 
+    // Filter by status
     if (status && status !== 'ALL') {
       where.status = status;
+    }
+
+    // EMPLOYEE can see only their own return requests
+    if (req.user?.role === 'EMPLOYEE') {
+      where.employeeId = req.user.employeeId;
     }
 
     const [total, requests] = await Promise.all([
